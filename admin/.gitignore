@@ -1,0 +1,24 @@
+# Bog'liqliklar
+/node_modules
+
+# Build
+/.next
+/out
+/build
+
+# Muhit (maxfiy)
+.env
+.env.*
+!.env.example
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vaqtinchalik tekshiruv configlari
+tsconfig.check.json
+tsconfig.verify.json
+
+# OS
+.DS_Store
+Thumbs.db

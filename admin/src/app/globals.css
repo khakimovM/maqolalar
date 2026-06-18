@@ -1,0 +1,320 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: #FBFAF7;
+  --foreground: #20242A;
+  --card: #FFFFFF;
+  --card-foreground: #20242A;
+  --popover: #FFFFFF;
+  --popover-foreground: #20242A;
+  --primary: #0F6E56;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1EFE8;
+  --secondary-foreground: #20242A;
+  --muted: #F1EFE8;
+  --muted-foreground: #5F5E5A;
+  --accent: #E1F5EE;
+  --accent-foreground: #0F6E56;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #E8E5DD;
+  --input: #E8E5DD;
+  --ring: #0F6E56;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: #14161A;
+  --foreground: #E7E8EA;
+  --card: #1B1E23;
+  --card-foreground: #E7E8EA;
+  --popover: #1B1E23;
+  --popover-foreground: #E7E8EA;
+  --primary: #5DCAA5;
+  --primary-foreground: #0A2A22;
+  --secondary: #23262C;
+  --secondary-foreground: #E7E8EA;
+  --muted: #23262C;
+  --muted-foreground: #A0A3A8;
+  --accent: #10342B;
+  --accent-foreground: #9FE1CB;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: #5DCAA5;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+/* ── Tiptap muharrir kontenti ── */
+.tiptap :where(h2) {
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 1.4rem 0 0.6rem;
+}
+.tiptap :where(h3) {
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.2rem 0 0.5rem;
+}
+.tiptap :where(h4) {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1rem 0 0.4rem;
+}
+.tiptap :where(p) {
+  margin: 0.6rem 0;
+}
+.tiptap :where(ul) {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0.6rem 0;
+}
+.tiptap :where(ol) {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 0.6rem 0;
+}
+.tiptap :where(li) {
+  margin: 0.2rem 0;
+}
+.tiptap :where(blockquote) {
+  border-left: 3px solid var(--primary);
+  padding-left: 1rem;
+  margin: 0.8rem 0;
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+.tiptap :where(a) {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tiptap :where(code) {
+  background: var(--muted);
+  border-radius: 0.3rem;
+  padding: 0.1rem 0.35rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.9em;
+}
+.tiptap :where(pre) {
+  background: var(--muted);
+  border-radius: 0.6rem;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  margin: 0.8rem 0;
+}
+.tiptap :where(pre code) {
+  background: none;
+  padding: 0;
+}
+.tiptap :where(hr) {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.4rem 0;
+}
+.tiptap :where(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.6rem;
+  margin: 0.8rem 0;
+}
+.tiptap :where(img.ProseMirror-selectednode) {
+  outline: 2px solid var(--primary);
+}
+/* placeholder */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+/* ── Formula (KaTeX) node'lari ── */
+.tiptap .math-node {
+  cursor: pointer;
+  border-radius: 4px;
+}
+.tiptap .math-inline {
+  display: inline-block;
+  padding: 0 2px;
+}
+.tiptap .math-block {
+  display: block;
+  margin: 0.8rem 0;
+  text-align: center;
+  overflow-x: auto;
+}
+.tiptap .math-empty {
+  color: var(--muted-foreground);
+  font-style: italic;
+  font-family: var(--font-sans);
+}
+.tiptap .math-node.ProseMirror-selectednode {
+  outline: 2px solid var(--primary);
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+}
+
+/* ── O'lchami o'zgartiriladigan rasm (muharrir) ── */
+.tiptap .img-resizer {
+  display: block;
+  margin: 0.8rem 0;
+}
+.tiptap .img-resizer[data-align="left"] { text-align: left; }
+.tiptap .img-resizer[data-align="center"] { text-align: center; }
+.tiptap .img-resizer[data-align="right"] { text-align: right; }
+.tiptap .img-resizer-box {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+.tiptap .img-resizer-box img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+.tiptap .img-resizer.selected .img-resizer-box {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+/* resize handle'lar */
+.tiptap .img-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--primary);
+  border: 2px solid var(--background);
+  border-radius: 50%;
+  display: none;
+  z-index: 2;
+}
+.tiptap .img-resizer.selected .img-handle { display: block; }
+.tiptap .img-handle-tl { top: -6px; left: -6px; cursor: nwse-resize; }
+.tiptap .img-handle-tr { top: -6px; right: -6px; cursor: nesw-resize; }
+.tiptap .img-handle-bl { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.tiptap .img-handle-br { bottom: -6px; right: -6px; cursor: nwse-resize; }
+/* joylashuv paneli */
+.tiptap .img-resizer-bar {
+  position: absolute;
+  top: -42px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  gap: 2px;
+  padding: 3px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  line-height: 1;
+  z-index: 3;
+}
+.tiptap .img-resizer.selected .img-resizer-bar { display: flex; }
+.tiptap .img-align-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.tiptap .img-align-btn:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+/* chekka handle'lar (faqat width / faqat height) */
+.tiptap .img-handle-rm { top: 50%; right: -6px; margin-top: -6px; cursor: ew-resize; }
+.tiptap .img-handle-lm { top: 50%; left: -6px; margin-top: -6px; cursor: ew-resize; }
+.tiptap .img-handle-tm { left: 50%; top: -6px; margin-left: -6px; cursor: ns-resize; }
+.tiptap .img-handle-bm { left: 50%; bottom: -6px; margin-left: -6px; cursor: ns-resize; }

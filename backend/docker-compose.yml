@@ -1,0 +1,28 @@
+# Development uchun: PostgreSQL + Redis
+# Ishga tushirish: docker compose up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: maqolalar-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: maqolalar
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: maqolalar-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  redisdata:

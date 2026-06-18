@@ -1,0 +1,51 @@
+# ===== Bog'liqliklar =====
+node_modules/
+**/node_modules/
+/.pnp
+.pnp.*
+
+# ===== Build natijalari =====
+.next/
+**/.next/
+out/
+**/out/
+build/
+**/build/
+dist/
+**/dist/
+
+# ===== Muhit o'zgaruvchilari (MAXFIY — commit qilinmaydi) =====
+.env
+.env.*
+**/.env
+**/.env.*
+# Shablonlar commit bo'lsin:
+!.env.example
+!**/.env.example
+
+# ===== Backend yuklangan fayllar =====
+backend/uploads/
+**/uploads/
+
+# ===== Loglar =====
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ===== TypeScript / Next =====
+*.tsbuildinfo
+next-env.d.ts
+
+# ===== Tahrir / OS / deploy =====
+.DS_Store
+*.pem
+.vercel
+.idea/
+.vscode/
+Thumbs.db
+
+# ===== Vaqtinchalik tekshiruv configlari =====
+**/tsconfig.check.json
+**/tsconfig.verify.json

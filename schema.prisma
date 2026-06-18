@@ -1,0 +1,310 @@
+// ============================================================
+// Maqolalar Blog Platformasi — Prisma Schema
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+enum ArticleType {
+  FREE
+  PREMIUM
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum NotificationType {
+  NEW_COMMENT       // maqolangga comment keldi (admin uchun)
+  NEW_REPLY         // commentingga javob keldi (user uchun)
+  NEW_LIKE          // maqolangga layk bosildi (admin uchun)
+  COMMENT_SPAM      // comment spam sifatida belgilandi (admin uchun)
+}
+
+enum OAuthProvider {
+  GOOGLE
+  GITHUB
+}
+
+// ============================================================
+// USER
+// ============================================================
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  password     String?  // OAuth orqali kiruvchilar uchun null bo'lishi mumkin
+  avatar       String?
+  role         Role     @default(USER)
+  isActive     Boolean  @default(true)
+  isVerified   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  oauthAccounts  OAuthAccount[]
+  refreshTokens  RefreshToken[]
+  articles       Article[]        // faqat ADMIN va SUPERADMIN yozadi
+  likes          Like[]
+  comments       Comment[]
+  commentReports CommentReport[]
+  savedArticles  SavedArticle[]
+  readingProgresses ReadingProgress[]
+  notifications  Notification[]   // bu userni bildirishnomalari
+  articleViews   ArticleView[]
+
+  @@map("users")
+}
+
+// ============================================================
+// OAUTH
+// ============================================================
+
+model OAuthAccount {
+  id         String        @id @default(cuid())
+  userId     String
+  provider   OAuthProvider
+  providerId String        // Google yoki GitHub dan kelgan unique ID
+  createdAt  DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@map("oauth_accounts")
+}
+
+// ============================================================
+// REFRESH TOKEN
+// ============================================================
+// MUHIM: token plain saqlanMAYDI — SHA-256 hash saqlanadi.
+// Login: hash(token) → DB ga yoziladi, plain token clientga ketadi.
+// Refresh: kelgan tokenni hash qilib DB dan qidiriladi.
+// ============================================================
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique // SHA-256(token)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// CATEGORY
+// ============================================================
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique // "kimyo", "matematika", "qurilish"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  articles Article[]
+
+  @@map("categories")
+}
+
+// ============================================================
+// ARTICLE
+// ============================================================
+// Eslatma: maqola ichidagi rasmlar alohida jadvalda saqlanMAYDI —
+// URL'lar Tiptap content (Json) ichida turadi.
+// Slug to'qnashuvida "-2", "-3" suffix qo'shiladi.
+// ============================================================
+
+model Article {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique // "python-dasturlash-asoslari"
+  excerpt     String?       // ro'yxat sahifalari uchun qisqa tavsif
+  content     Json          // Rich text (Tiptap JSON format)
+  searchText  String        @default("") // content'dan olingan plain text — qidiruv uchun, create/update da yangilanadi
+  coverImage  String?       // Asosiy muqova rasmi
+  type        ArticleType   @default(FREE)
+  status      ArticleStatus @default(DRAFT)
+  viewCount   Int           @default(0) // tezkor counter; batafsil statistika ArticleView da
+  publishedAt DateTime?     // PUBLISHED ga o'tganda set qilinadi
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  authorId   String
+  categoryId String
+
+  author   User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  // Relations
+  likes           Like[]
+  comments        Comment[]
+  savedBy         SavedArticle[]
+  readingProgresses ReadingProgress[]
+  views           ArticleView[]
+
+  @@index([status, type, publishedAt]) // asosiy ro'yxat query'si
+  @@index([categoryId])
+  @@index([authorId])
+  @@map("articles")
+}
+
+// ============================================================
+// ARTICLE VIEW (ko'rishlar statistikasi)
+// ============================================================
+// GET /articles/:slug da yoziladi: viewCount++ va shu jadvalga insert.
+// Kunlik/oylik analytics va unique views shu yerdan hisoblanadi.
+// ============================================================
+
+model ArticleView {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String?  // ro'yxatdan o'tmagan mehmonlar uchun null
+  ipHash    String?  // mehmonlarning unique view'ini taxminiy hisoblash uchun
+  createdAt DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([articleId, createdAt]) // sana bo'yicha statistika
+  @@index([userId])
+  @@map("article_views")
+}
+
+// ============================================================
+// LIKE
+// ============================================================
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId]) // bir user bir maqolaga faqat 1 layk
+  @@map("likes")
+}
+
+// ============================================================
+// COMMENT (nested replies qo'llab-quvvatlanadi)
+// ============================================================
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  isDeleted Boolean  @default(false) // soft delete
+  isEdited  Boolean  @default(false) // PATCH /comments/:id da true bo'ladi
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId  String
+  articleId String
+  parentId  String?  // null = top-level comment, value = reply
+
+  author  User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies Comment[] @relation("CommentReplies")
+
+  reports CommentReport[]
+
+  @@index([articleId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+// ============================================================
+// COMMENT REPORT (spam belgilash)
+// ============================================================
+
+model CommentReport {
+  id           String   @id @default(cuid())
+  commentId    String
+  reportedById String
+  reason       String?
+  createdAt    DateTime @default(now())
+
+  comment    Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reportedBy User    @relation(fields: [reportedById], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, reportedById]) // bir user bir commentni 1 marta reportlaydi
+  @@map("comment_reports")
+}
+
+// ============================================================
+// SAVED ARTICLES (keyinroq o'qiyman)
+// ============================================================
+
+model SavedArticle {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@map("saved_articles")
+}
+
+// ============================================================
+// READING PROGRESS (qo'lda belgilangan o'qish joyi)
+// ============================================================
+
+model ReadingProgress {
+  id             String   @id @default(cuid())
+  userId         String
+  articleId      String
+  scrollPercent  Int      // 0-100
+  lastMarkedAt   DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId]) // har bir user+article juftligi uchun bitta yozuv
+  @@map("reading_progresses")
+}
+
+// ============================================================
+// NOTIFICATION
+// ============================================================
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String           // bildirishnoma kimga ketadi
+  type        NotificationType
+  referenceId String           // tegishli commentId yoki articleId
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead]) // o'qilmaganlar ro'yxati query'si
+  @@map("notifications")
+}
