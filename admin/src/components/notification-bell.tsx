@@ -22,6 +22,7 @@ import {
 } from "@/lib/notifications";
 import { useAuth } from "@/lib/store/auth";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
 
 function TypeIcon({ type }: { type: NotificationType }) {
   const cls = "h-4 w-4";
@@ -47,7 +48,6 @@ export function NotificationBell({ align = "right" }: { align?: "left" | "right"
     refetchOnWindowFocus: true,
   });
 
-  // Tashqariga bosilganda yopiladi
   useEffect(() => {
     function onClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -70,9 +70,11 @@ export function NotificationBell({ align = "right" }: { align?: "left" | "right"
 
   function onItem(n: AppNotification) {
     if (!n.isRead) readMut.mutate(n.id);
-    if (n.article) {
-      router.push(`/articles/${n.article.slug}`);
-      setOpen(false);
+    setOpen(false);
+    if (n.type === "COMMENT_SPAM") {
+      router.push("/reported");
+    } else if (n.article) {
+      window.open(`${SITE_URL}/articles/${n.article.slug}`, "_blank");
     }
   }
 

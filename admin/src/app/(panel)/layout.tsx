@@ -10,8 +10,11 @@ import {
   Users,
   ExternalLink,
   LogOut,
+  Flag,
+  User,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/notification-bell";
 import { useAuth } from "@/lib/store/auth";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
@@ -19,8 +22,10 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
 const NAV = [
   { href: "/", label: "Boshqaruv", icon: LayoutDashboard, exact: true },
   { href: "/articles", label: "Maqolalar", icon: FileText },
+  { href: "/reported", label: "Shikoyatlar", icon: Flag },
   { href: "/categories", label: "Kategoriyalar", icon: FolderTree, super: true },
   { href: "/admins", label: "Adminlar", icon: Users, super: true },
+  { href: "/profile", label: "Profil", icon: User },
 ];
 
 export default function PanelLayout({
@@ -65,7 +70,10 @@ export default function PanelLayout({
             <LayoutDashboard className="h-5 w-5 text-primary" />
             Admin
           </Link>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <NotificationBell align="left" />
+            <ThemeToggle />
+          </div>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1">
@@ -134,7 +142,8 @@ export default function PanelLayout({
               </Link>
             );
           })}
-          <div className="ml-auto shrink-0">
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <NotificationBell />
             <ThemeToggle />
           </div>
         </div>

@@ -197,3 +197,30 @@ export async function uploadArticleImage(file: File): Promise<string> {
   const res = await api.post("/upload/article-image", form);
   return res.data.data.url as string;
 }
+
+// ── Shikoyat qilingan izohlar (moderatsiya) ──────────────
+
+export interface ReportedComment {
+  id: string;
+  content: string;
+  author: AuthorMini;
+  article: { id: string; title: string; slug: string };
+  reportCount: number;
+  reports: {
+    reason: string | null;
+    reportedBy: { id: string; username: string };
+    createdAt: string;
+  }[];
+  createdAt: string;
+}
+
+/** Shikoyat qilingan izohlar. GET /comments/reported */
+export async function fetchReportedComments(): Promise<ReportedComment[]> {
+  const res = await api.get("/comments/reported");
+  return res.data.data.items;
+}
+
+/** Izohni moderatsiya bilan o'chirish. DELETE /comments/:id/admin */
+export async function deleteCommentAdmin(id: string): Promise<void> {
+  await api.delete(`/comments/${id}/admin`);
+}
