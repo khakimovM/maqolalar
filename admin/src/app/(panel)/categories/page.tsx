@@ -11,11 +11,13 @@ import {
   type AdminCategory,
 } from "@/lib/admin";
 import { apiError } from "@/lib/api";
+import { useConfirm } from "@/components/confirm-dialog";
 import { useAuth } from "@/lib/store/auth";
 
 export default function CategoriesPage() {
   const role = useAuth((s) => s.user?.role);
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [name, setName] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -162,10 +164,14 @@ export default function CategoriesPage() {
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => {
-                      if (window.confirm(`"${c.name}" kategoriyasini o'chirasizmi?`)) {
-                        deleteMut.mutate(c.id);
-                      }
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: "Kategoriyani o'chirish",
+                        description: `"${c.name}" o'chiriladi.`,
+                        confirmText: "O'chirish",
+                        danger: true,
+                      });
+                      if (ok) deleteMut.mutate(c.id);
                     }}
                     disabled={deleteMut.isPending}
                     className="rounded-md p-1.5 text-destructive hover:bg-destructive/10 disabled:opacity-50"

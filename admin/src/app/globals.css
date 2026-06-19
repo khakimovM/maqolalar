@@ -318,3 +318,22 @@
 .tiptap .img-handle-lm { top: 50%; left: -6px; margin-top: -6px; cursor: ew-resize; }
 .tiptap .img-handle-tm { left: 50%; top: -6px; margin-left: -6px; cursor: ns-resize; }
 .tiptap .img-handle-bm { left: 50%; bottom: -6px; margin-left: -6px; cursor: ns-resize; }
+
+/* H1, H5, H6 (muharrir) */
+.tiptap :where(h1) {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 1.6rem 0 0.7rem;
+}
+.tiptap :where(h5) {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.9rem 0 0.35rem;
+}
+.tiptap :where(h6) {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  margin: 0.8rem 0 0.3rem;
+}

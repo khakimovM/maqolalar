@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider } from "@/components/toast";
 import { NotificationsListener } from "@/components/notifications-listener";
+import { DialogProvider } from "@/components/confirm-dialog";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -29,8 +30,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     >
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <NotificationsListener />
-          {children}
+          <DialogProvider>
+            <NotificationsListener />
+            {children}
+          </DialogProvider>
         </ToastProvider>
       </QueryClientProvider>
     </ThemeProvider>

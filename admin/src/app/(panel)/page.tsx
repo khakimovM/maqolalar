@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Eye,
@@ -13,6 +14,8 @@ import {
 } from "lucide-react";
 import { fetchMyAnalytics, fetchStats } from "@/lib/admin";
 import { useAuth } from "@/lib/store/auth";
+
+type Period = "daily" | "monthly" | "yearly" | "custom";
 
 function StatCard({
   label,
@@ -43,11 +46,30 @@ export default function AdminDashboard() {
     queryFn: fetchMyAnalytics,
   });
 
+  const [period, setPeriod] = useState<Period>("monthly");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const customReady = period === "custom" && !!from && !!to;
+
   const stats = useQuery({
-    queryKey: ["admin-stats"],
-    queryFn: () => fetchStats(),
+    queryKey: ["admin-stats", period, from, to],
+    queryFn: () =>
+      customReady
+        ? fetchStats({ from, to })
+        : period === "custom"
+          ? fetchStats({ period: "monthly" })
+          : fetchStats({ period }),
     enabled: isSuper,
   });
+
+  const rangeLabel =
+    period === "daily"
+      ? "bugun"
+      : period === "yearly"
+        ? "yil"
+        : period === "custom"
+          ? "oraliq"
+          : "oy";
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -62,7 +84,50 @@ export default function AdminDashboard() {
 
       {isSuper && (
         <section className="mb-10">
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">Platforma</h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-medium text-muted-foreground">Platforma</h2>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  ["daily", "Kunlik"],
+                  ["monthly", "Oylik"],
+                  ["yearly", "Yillik"],
+                  ["custom", "Maxsus"],
+                ] as [Period, string][]
+              ).map(([p, label]) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPeriod(p)}
+                  className={
+                    "rounded-full px-3 py-1 text-xs font-medium transition-colors " +
+                    (period === p
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {period === "custom" && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+              <input
+                type="date"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className="rounded-lg border border-input bg-background px-3 py-1.5 outline-none focus:border-primary"
+              />
+              <span className="text-muted-foreground">—</span>
+              <input
+                type="date"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className="rounded-lg border border-input bg-background px-3 py-1.5 outline-none focus:border-primary"
+              />
+            </div>
+          )}
           {stats.isLoading ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -81,8 +146,8 @@ export default function AdminDashboard() {
                 <StatCard label="Ko'rishlar" value={stats.data.totals.views} icon={Eye} />
               </div>
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <StatCard label="Yangi foydalanuvchi (oy)" value={stats.data.range.newUsers} icon={UserPlus} />
-                <StatCard label="Yangi maqola (oy)" value={stats.data.range.newArticles} icon={FilePlus2} />
+                <StatCard label={`Yangi foydalanuvchi (${rangeLabel})`} value={stats.data.range.newUsers} icon={UserPlus} />
+                <StatCard label={`Yangi maqola (${rangeLabel})`} value={stats.data.range.newArticles} icon={FilePlus2} />
               </div>
             </>
           ) : null}

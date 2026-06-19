@@ -8,6 +8,7 @@ import {
   type ReportedComment,
 } from "@/lib/admin";
 import { apiError } from "@/lib/api";
+import { useConfirm } from "@/components/confirm-dialog";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
 
@@ -21,6 +22,7 @@ function fmtDate(s: string) {
 
 export default function ReportedPage() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["reported"],
     queryFn: fetchReportedComments,
@@ -92,14 +94,14 @@ export default function ReportedPage() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Bu izohni butunlay o'chirishni tasdiqlaysizmi?",
-                      )
-                    ) {
-                      deleteMut.mutate(c.id);
-                    }
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: "Izohni o'chirish",
+                      description: "Bu izoh butunlay o'chiriladi.",
+                      confirmText: "O'chirish",
+                      danger: true,
+                    });
+                    if (ok) deleteMut.mutate(c.id);
                   }}
                   disabled={deleteMut.isPending}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-destructive/40 px-3 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"

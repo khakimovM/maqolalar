@@ -61,7 +61,8 @@ export async function toggleSave(id: string): Promise<{ saved: boolean }> {
 
 export async function fetchComments(slug: string): Promise<CommentNode[]> {
   const res = await api.get(`/articles/${slug}/comments`);
-  return res.data.data;
+  // Backend { data: { items, total } } qaytaradi — bizga items massivi kerak
+  return res.data.data.items;
 }
 
 export async function addComment(
@@ -70,4 +71,33 @@ export async function addComment(
 ): Promise<CommentNode> {
   const res = await api.post(`/articles/${slug}/comments`, { content });
   return res.data.data;
+}
+
+/** Izohga javob. POST /comments/:id/reply */
+export async function replyComment(
+  commentId: string,
+  content: string,
+): Promise<void> {
+  await api.post(`/comments/${commentId}/reply`, { content });
+}
+
+/** O'z izohini tahrirlash. PUT /comments/:id */
+export async function editComment(
+  commentId: string,
+  content: string,
+): Promise<void> {
+  await api.put(`/comments/${commentId}`, { content });
+}
+
+/** O'z izohini o'chirish (soft delete). DELETE /comments/:id */
+export async function deleteComment(commentId: string): Promise<void> {
+  await api.delete(`/comments/${commentId}`);
+}
+
+/** Izohni spam/shikoyat deb belgilash. POST /comments/:id/report */
+export async function reportComment(
+  commentId: string,
+  reason?: string,
+): Promise<void> {
+  await api.post(`/comments/${commentId}/report`, reason ? { reason } : {});
 }

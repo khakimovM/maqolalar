@@ -84,12 +84,16 @@ function renderNode(node: TNode, key: React.Key): React.ReactNode {
       );
     case "heading": {
       const level = Number(node.attrs?.level ?? 2);
+      const sizes: Record<number, string> = {
+        1: "text-4xl",
+        2: "text-3xl",
+        3: "text-2xl",
+        4: "text-xl",
+        5: "text-lg",
+        6: "text-base",
+      };
       const cls =
-        level <= 2
-          ? "mt-10 mb-4 font-serif text-3xl font-medium"
-          : level === 3
-            ? "mt-8 mb-3 font-serif text-2xl font-medium"
-            : "mt-6 mb-2 font-serif text-xl font-medium";
+        "mt-8 mb-3 font-serif font-medium " + (sizes[level] ?? "text-xl");
       const Tag = (`h${Math.min(6, Math.max(1, level))}`) as keyof React.JSX.IntrinsicElements;
       return (
         <Tag key={key} className={cls}>

@@ -22,6 +22,7 @@ import {
   type AdminArticle,
 } from "@/lib/admin";
 import { apiError } from "@/lib/api";
+import { useConfirm } from "@/components/confirm-dialog";
 import type { ArticleStatus } from "@/lib/types";
 
 const FILTERS: { value: ArticleStatus | "ALL"; label: string }[] = [
@@ -51,6 +52,7 @@ function StatusBadge({ s }: { s: ArticleStatus }) {
 
 export default function AdminArticlesPage() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [status, setStatus] = useState<ArticleStatus | "ALL">("ALL");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -152,10 +154,14 @@ export default function AdminArticlesPage() {
               busy={busyId === a.id}
               onPublish={() => publishMut.mutate(a.id)}
               onArchive={() => archiveMut.mutate(a.id)}
-              onDelete={() => {
-                if (window.confirm(`"${a.title}" maqolasini o'chirishni tasdiqlaysizmi?`)) {
-                  deleteMut.mutate(a.id);
-                }
+              onDelete={async () => {
+                const ok = await confirm({
+                  title: "Maqolani o'chirish",
+                  description: `"${a.title}" butunlay o'chiriladi.`,
+                  confirmText: "O'chirish",
+                  danger: true,
+                });
+                if (ok) deleteMut.mutate(a.id);
               }}
             />
           ))}

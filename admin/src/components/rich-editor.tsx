@@ -12,14 +12,17 @@ import { NodeSelection } from "@tiptap/pm/state";
 import { InlineMath, BlockMath } from "./math-extension";
 import { MathDialog, type MathMode } from "./math-dialog";
 import { ImageCropDialog } from "./image-crop-dialog";
+import { useToast } from "@/components/toast";
+import { usePrompt } from "@/components/confirm-dialog";
 import {
   Bold,
   Italic,
   Underline as UnderlineIcon,
   Strikethrough,
   Code,
-  Heading2,
-  Heading3,
+  Heading,
+  ChevronDown,
+  Smile,
   List,
   ListOrdered,
   Quote,
@@ -75,9 +78,127 @@ function Divider() {
   return <span className="mx-1 h-5 w-px bg-border" />;
 }
 
+const EMOJIS = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😋", "😎", "🤩", "🥳", "😏", "🤔", "🤨", "😐", "😴", "😬", "🙄", "😮", "😯", "😢", "😭", "😤", "😠", "😡", "🤯", "😱", "🥺", "🤗", "🤭", "🤫", "👍", "👎", "👏", "🙌", "👌", "✌️", "🤞", "🤝", "🙏", "💪", "👋", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔", "🔥", "⭐", "✨", "🎉", "🎊", "✅", "❌", "❗", "❓", "💯", "📌", "📝", "📚", "🔖", "💡", "⚡", "🌟"];
+
+function EmojiMenu({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        title="Emoji"
+        aria-label="Emoji"
+        className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <Smile className="h-4 w-4" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 grid max-h-56 w-64 grid-cols-8 gap-0.5 overflow-y-auto rounded-lg border border-border bg-popover p-2 shadow-lg">
+          {EMOJIS.map((e) => (
+            <button
+              key={e}
+              type="button"
+              onClick={() => {
+                editor.chain().focus().insertContent(e).run();
+                setOpen(false);
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded text-lg transition-colors hover:bg-muted"
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HeadingMenu({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  const levels = [1, 2, 3, 4, 5, 6] as const;
+  const current = levels.find((l) => editor.isActive("heading", { level: l }));
+
+  function item(active: boolean) {
+    return (
+      "flex w-full items-center px-3 py-1.5 text-left text-sm transition-colors " +
+      (active ? "bg-primary/10 text-primary" : "hover:bg-muted")
+    );
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        title="Sarlavha darajasi"
+        className={
+          "flex h-8 items-center gap-1 rounded-md px-2 transition-colors " +
+          (current
+            ? "bg-primary/15 text-primary"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground")
+        }
+      >
+        <Heading className="h-4 w-4" />
+        <span className="text-xs font-medium">{current ? "H" + current : "¶"}</span>
+        <ChevronDown className="h-3 w-3" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-lg">
+          <button
+            type="button"
+            onClick={() => {
+              editor.chain().focus().setParagraph().run();
+              setOpen(false);
+            }}
+            className={item(!current)}
+          >
+            Oddiy matn
+          </button>
+          {levels.map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => {
+                editor.chain().focus().toggleHeading({ level: l }).run();
+                setOpen(false);
+              }}
+              className={item(current === l)}
+            >
+              <span style={{ fontSize: `${1.35 - l * 0.08}rem`, fontWeight: 600 }}>
+                Sarlavha {l}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Toolbar({ editor }: { editor: Editor }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const { toast } = useToast();
+  const prompt = usePrompt();
   const [mathInit, setMathInit] = useState<{ latex: string; mode: MathMode } | null>(null);
   const [cropState, setCropState] = useState<{ src: string; pos: number } | null>(null);
 
@@ -109,7 +230,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         }),
       );
     } catch {
-      window.alert("Rasmni saqlab bo'lmadi.");
+      toast({ title: "Rasmni saqlab bo'lmadi." });
     } finally {
       setCropState(null);
     }
@@ -154,9 +275,14 @@ function Toolbar({ editor }: { editor: Editor }) {
   }
 
 
-  function setLink() {
+  async function setLink() {
     const prev = (editor.getAttributes("link").href as string) || "";
-    const url = window.prompt("Havola manzili (URL):", prev || "https://");
+    const url = await prompt({
+      title: "Havola qo'shish",
+      placeholder: "https://...",
+      defaultValue: prev || "https://",
+      confirmText: "Qo'shish",
+    });
     if (url === null) return;
     if (url.trim() === "") {
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
@@ -179,7 +305,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       const url = await uploadArticleImage(file);
       editor.chain().focus().setImage({ src: url }).run();
     } catch {
-      window.alert("Rasm yuklab bo'lmadi.");
+      toast({ title: "Rasm yuklab bo'lmadi." });
     } finally {
       setUploading(false);
     }
@@ -187,12 +313,7 @@ function Toolbar({ editor }: { editor: Editor }) {
 
   return (
     <div className="sticky top-0 z-20 flex flex-wrap items-center gap-0.5 rounded-t-xl border-b border-border bg-card p-2 shadow-sm">
-      <Btn title="Sarlavha 2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-        <Heading2 className="h-4 w-4" />
-      </Btn>
-      <Btn title="Sarlavha 3" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-        <Heading3 className="h-4 w-4" />
-      </Btn>
+      <HeadingMenu editor={editor} />
       <Divider />
       <Btn title="Qalin" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
         <Bold className="h-4 w-4" />
@@ -245,6 +366,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       <Btn title="Formula (LaTeX)" active={editor.isActive("inlineMath") || editor.isActive("blockMath")} onClick={openMath}>
         <Sigma className="h-4 w-4" />
       </Btn>
+      <EmojiMenu editor={editor} />
       <Divider />
       <Btn title="Bekor qilish" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()}>
         <Undo2 className="h-4 w-4" />
@@ -293,7 +415,7 @@ export function RichEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({
-        heading: { levels: [2, 3, 4] },
+        heading: { levels: [1, 2, 3, 4, 5, 6] },
         link: { openOnClick: false, autolink: true },
       }),
       ResizableImage.configure({ inline: false, allowBase64: false }),

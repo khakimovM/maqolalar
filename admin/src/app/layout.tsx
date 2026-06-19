@@ -11,6 +11,7 @@ const lora = Lora({ variable: "--font-serif", subsets: ["latin", "cyrillic"] });
 export const metadata: Metadata = {
   title: "Maqolalar — Admin",
   description: "Maqolalar platformasi boshqaruv paneli.",
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({
