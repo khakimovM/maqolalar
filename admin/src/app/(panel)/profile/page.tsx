@@ -1,14 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { ShieldCheck, BadgeCheck, Check } from "lucide-react";
+import {
+  ShieldCheck,
+  BadgeCheck,
+  Check,
+  Mail,
+  MailCheck,
+  Pencil,
+  ArrowLeft,
+} from "lucide-react";
 import { AvatarUploader } from "@/components/avatar-uploader";
 import { Field, FormError, SubmitButton } from "@/components/form";
-import { updateProfile, changePassword } from "@/lib/profile";
+import { OtpInput } from "@/components/otp-input";
+import {
+  updateProfile,
+  changePassword,
+  requestEmailChange,
+  confirmEmailChange,
+} from "@/lib/profile";
 import { apiError } from "@/lib/api";
 import { useAuth } from "@/lib/store/auth";
+
+const RESEND_SECONDS = 60;
 
 function RoleBadge({ role }: { role: string }) {
   const label = role === "SUPERADMIN" ? "Super admin" : "Admin";
@@ -30,6 +46,19 @@ export default function AdminProfilePage() {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
+  // Email o'zgartirish
+  const [emailMode, setEmailMode] = useState<"view" | "input" | "otp">("view");
+  const [newEmail, setNewEmail] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [emailCooldown, setEmailCooldown] = useState(0);
+  const [emailSaved, setEmailSaved] = useState(false);
+
+  useEffect(() => {
+    if (emailCooldown <= 0) return;
+    const t = setInterval(() => setEmailCooldown((s) => s - 1), 1000);
+    return () => clearInterval(t);
+  }, [emailCooldown]);
+
   const nameMut = useMutation({
     mutationFn: () => updateProfile({ username }),
     onSuccess: (u) => setUser(u),
@@ -41,6 +70,35 @@ export default function AdminProfilePage() {
       router.replace("/login");
     },
   });
+
+  const emailReqMut = useMutation({
+    mutationFn: () => requestEmailChange(newEmail.trim()),
+    onSuccess: () => {
+      setEmailMode("otp");
+      setEmailCode("");
+      setEmailCooldown(RESEND_SECONDS);
+    },
+  });
+  const emailConfirmMut = useMutation({
+    mutationFn: () => confirmEmailChange(newEmail.trim(), emailCode),
+    onSuccess: (u) => {
+      setUser(u);
+      setEmailMode("view");
+      setNewEmail("");
+      setEmailCode("");
+      setEmailCooldown(0);
+      setEmailSaved(true);
+    },
+  });
+
+  function cancelEmail() {
+    setEmailMode("view");
+    setNewEmail("");
+    setEmailCode("");
+    setEmailCooldown(0);
+    emailReqMut.reset();
+    emailConfirmMut.reset();
+  }
 
   const nameChanged = username.trim() !== "" && username !== user?.username;
 
@@ -105,6 +163,139 @@ export default function AdminProfilePage() {
             )}
           </div>
         </form>
+      </section>
+
+      {/* Email */}
+      <section className="mb-6 rounded-xl border border-border bg-card p-5 sm:p-6">
+        <h3 className="mb-1 font-medium">Email manzil</h3>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Email o&apos;zgartirilganda yangi manzilga tasdiqlash kodi yuboriladi.
+        </p>
+
+        {emailMode === "view" ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{user.email}</span>
+              {emailSaved && (
+                <span className="flex items-center gap-1 text-xs text-primary">
+                  <Check className="h-3.5 w-3.5" /> Saqlandi
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEmailSaved(false);
+                setEmailMode("input");
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              O&apos;zgartirish
+            </button>
+          </div>
+        ) : emailMode === "input" ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              emailReqMut.mutate();
+            }}
+            className="space-y-4"
+          >
+            <Field
+              id="newEmail"
+              type="email"
+              label="Yangi email"
+              placeholder="yangi@example.com"
+              autoComplete="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              required
+              hint="Tasdiqlash kodi shu manzilga yuboriladi"
+            />
+            <FormError
+              message={emailReqMut.isError ? apiError(emailReqMut.error) : null}
+            />
+            <div className="flex items-center gap-4">
+              <div className="w-44">
+                <SubmitButton
+                  loading={emailReqMut.isPending}
+                  disabled={!newEmail.trim() || newEmail.trim() === user.email}
+                >
+                  Kod yuborish
+                </SubmitButton>
+              </div>
+              <button
+                type="button"
+                onClick={cancelEmail}
+                className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> Bekor qilish
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              emailConfirmMut.mutate();
+            }}
+            className="space-y-4"
+          >
+            <p className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm text-muted-foreground">
+              <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span>
+                <span className="font-medium text-foreground">
+                  {newEmail.trim()}
+                </span>{" "}
+                manziliga 6 xonali tasdiqlash kodi yuborildi.
+              </span>
+            </p>
+            <OtpInput
+              value={emailCode}
+              onChange={setEmailCode}
+              disabled={emailConfirmMut.isPending}
+            />
+            <FormError
+              message={
+                emailConfirmMut.isError ? apiError(emailConfirmMut.error) : null
+              }
+            />
+            <div className="w-56">
+              <SubmitButton
+                loading={emailConfirmMut.isPending}
+                disabled={emailCode.length !== 6}
+              >
+                Tasdiqlab, yangilash
+              </SubmitButton>
+            </div>
+            <div className="flex items-center gap-4 text-sm">
+              {emailCooldown > 0 ? (
+                <span className="text-muted-foreground">
+                  Qayta yuborish:{" "}
+                  <span className="tabular-nums">{emailCooldown}s</span>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => emailReqMut.mutate()}
+                  disabled={emailReqMut.isPending}
+                  className="font-medium text-primary hover:underline disabled:opacity-60"
+                >
+                  Kodni qayta yuborish
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={cancelEmail}
+                className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> Bekor qilish
+              </button>
+            </div>
+          </form>
+        )}
       </section>
 
       {/* Parol */}

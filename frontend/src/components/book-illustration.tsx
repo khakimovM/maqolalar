@@ -9,9 +9,6 @@ import {
   useTransform,
 } from "framer-motion";
 
-const MASK =
-  "radial-gradient(ellipse 96% 96% at 50% 48%, #000 86%, transparent 100%)";
-
 export function BookIllustration() {
   const reduce = useReducedMotion();
   const mx = useMotionValue(0);
@@ -31,8 +28,8 @@ export function BookIllustration() {
         aria-hidden
         className="absolute rounded-full"
         style={{
-          width: 520,
-          height: 520,
+          width: 660,
+          height: 660,
           background: "radial-gradient(circle, rgba(93,202,165,0.18), rgba(70,225,205,0.06) 50%, transparent 70%)",
           filter: "blur(50px)",
         }}
@@ -46,7 +43,10 @@ export function BookIllustration() {
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1, ease: "easeOut" }}
-          style={{ width: "min(72vw, 480px)", maskImage: MASK, WebkitMaskImage: MASK }}
+          style={{
+            width: "min(86vw, 600px)",
+            filter: "drop-shadow(0 14px 30px rgba(0,0,0,0.16))",
+          }}
         >
           <Image
             src="/hero.webp"

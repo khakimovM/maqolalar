@@ -26,4 +26,9 @@ export class MailService {
   sendOtpReset(email: string, code: string) {
     return this.queue.add('otp-reset', { email, code }, JOB_OPTS);
   }
+
+  /** Yangi emailni tasdiqlash OTP kodi (email o'zgartirish) */
+  sendOtpChangeEmail(email: string, code: string) {
+    return this.queue.add('otp-change-email', { email, code }, JOB_OPTS);
+  }
 }

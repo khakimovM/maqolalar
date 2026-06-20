@@ -12,6 +12,7 @@ type MailJobData = { email: string; code: string };
 const SUBJECTS: Record<string, string> = {
   'otp-verification': 'Maqolalar — Email tasdiqlash kodi',
   'otp-reset': 'Maqolalar — Parolni tiklash kodi',
+  'otp-change-email': 'Maqolalar — Yangi emailni tasdiqlash kodi',
 };
 
 /**

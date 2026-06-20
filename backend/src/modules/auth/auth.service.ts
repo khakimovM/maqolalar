@@ -25,7 +25,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
-type OtpPurpose = 'verify' | 'reset';
+type OtpPurpose = 'verify' | 'reset' | 'change-email';
 
 @Injectable()
 export class AuthService {
@@ -231,6 +231,61 @@ export class AuthService {
   }
 
   // ==========================================================
+  // EMAIL O'ZGARTIRISH (yangi emailga OTP -> tasdiqlash)
+  // ==========================================================
+
+  /** 1-qadam: yangi emailga tasdiqlash kodi yuborish. */
+  async requestEmailChange(userId: string, newEmail: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Hisob topilmadi');
+
+    if (user.email === newEmail) {
+      throw new BadRequestException('Bu allaqachon sizning emailingiz');
+    }
+
+    // Konflikt: boshqa foydalanuvchi shu emaildan foydalanmasligi kerak
+    const taken = await this.prisma.user.findUnique({
+      where: { email: newEmail },
+    });
+    if (taken) throw new ConflictException('Bu email allaqachon band');
+
+    // Kod yangi emailga yuboriladi — foydalanuvchi unga egaligini isbotlaydi
+    await this.sendOtp(newEmail, 'change-email');
+
+    return {
+      data: { email: newEmail },
+      message: 'Tasdiqlash kodi yangi emailingizga yuborildi',
+    };
+  }
+
+  /** 2-qadam: kodni tasdiqlab, emailni yangilash. */
+  async confirmEmailChange(userId: string, newEmail: string, code: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Hisob topilmadi');
+
+    if (user.email === newEmail) {
+      throw new BadRequestException('Bu allaqachon sizning emailingiz');
+    }
+
+    // Konflikt qayta tekshiriladi (kod yuborilgandan keyin band bo'lishi mumkin)
+    const taken = await this.prisma.user.findUnique({
+      where: { email: newEmail },
+    });
+    if (taken && taken.id !== userId) {
+      throw new ConflictException('Bu email allaqachon band');
+    }
+
+    await this.checkOtp(newEmail, 'change-email', code);
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { email: newEmail, isVerified: true },
+    });
+
+    return { data: this.sanitize(updated), message: 'Email yangilandi' };
+  }
+
+  // ==========================================================
   // OTP HELPERS (Redis)
   // ==========================================================
 
@@ -256,6 +311,8 @@ export class AuthService {
 
     if (purpose === 'verify') {
       await this.mail.sendOtpVerification(email, code);
+    } else if (purpose === 'change-email') {
+      await this.mail.sendOtpChangeEmail(email, code);
     } else {
       await this.mail.sendOtpReset(email, code);
     }

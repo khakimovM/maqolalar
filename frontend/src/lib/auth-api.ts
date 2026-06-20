@@ -69,6 +69,20 @@ export async function resetPassword(dto: {
   await api.post("/auth/reset-password", dto);
 }
 
+/** Email o'zgartirish — 1-qadam: yangi emailga tasdiqlash kodi yuborish. */
+export async function requestEmailChange(newEmail: string): Promise<void> {
+  await api.post("/auth/change-email/request", { newEmail });
+}
+
+/** Email o'zgartirish — 2-qadam: kodni tasdiqlab emailni yangilash. */
+export async function confirmEmailChange(
+  newEmail: string,
+  code: string,
+): Promise<User> {
+  const res = await api.post("/auth/change-email/confirm", { newEmail, code });
+  return res.data.data;
+}
+
 /** OAuth boshlanish nuqtalari (to'liq sahifa yo'naltirilishi). */
 export const OAUTH_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";

@@ -11,6 +11,8 @@ import { ResendOtpDto } from './dto/resend-otp.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ChangeEmailRequestDto } from './dto/change-email-request.dto';
+import { ChangeEmailConfirmDto } from './dto/change-email-confirm.dto';
 
 // Auth endpointlarida qattiqroq limit: 10 so'rov / 60 sekund
 @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -78,5 +80,25 @@ export class AuthController {
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  /** Email o'zgartirish — 1-qadam: yangi emailga kod yuborish (auth talab). */
+  @HttpCode(HttpStatus.OK)
+  @Post('change-email/request')
+  requestEmailChange(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangeEmailRequestDto,
+  ) {
+    return this.authService.requestEmailChange(userId, dto.newEmail);
+  }
+
+  /** Email o'zgartirish — 2-qadam: kodni tasdiqlab emailni yangilash. */
+  @HttpCode(HttpStatus.OK)
+  @Post('change-email/confirm')
+  confirmEmailChange(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangeEmailConfirmDto,
+  ) {
+    return this.authService.confirmEmailChange(userId, dto.newEmail, dto.code);
   }
 }
