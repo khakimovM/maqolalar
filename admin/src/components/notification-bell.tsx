@@ -72,9 +72,12 @@ export function NotificationBell({ align = "right" }: { align?: "left" | "right"
     if (!n.isRead) readMut.mutate(n.id);
     setOpen(false);
     if (n.type === "COMMENT_SPAM") {
-      router.push("/reported");
+      // Spam → moderatsiya sahifasi, o'sha izohni belgilab
+      router.push(`/reported?comment=${n.referenceId}`);
     } else if (n.article) {
-      window.open(`${SITE_URL}/articles/${n.article.slug}`, "_blank");
+      // Yangi izoh / javob → public saytda izoh belgilab ochiladi
+      const suffix = n.type === "NEW_LIKE" ? "" : `?comment=${n.referenceId}`;
+      window.open(`${SITE_URL}/articles/${n.article.slug}${suffix}`, "_blank");
     }
   }
 

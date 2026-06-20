@@ -30,7 +30,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
         <Smile className="h-5 w-5" />
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 z-30 mb-2 grid max-h-56 w-64 grid-cols-8 gap-0.5 overflow-y-auto rounded-xl border border-border bg-popover p-2 shadow-lg">
+        <div className="absolute left-0 top-full z-30 mt-2 grid max-h-52 w-64 max-w-[min(16rem,calc(100vw-3rem))] grid-cols-8 gap-0.5 overflow-y-auto rounded-xl border border-border bg-popover p-2 shadow-lg">
           {EMOJIS.map((e) => (
             <button
               key={e}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -85,11 +85,13 @@ function CommentItem({
   slug,
   currentUserId,
   token,
+  highlightId,
 }: {
   c: CommentNode;
   slug: string;
   currentUserId?: string;
   token: string | null;
+  highlightId?: string | null;
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -100,6 +102,20 @@ function CommentItem({
   const replyRef = useRef<HTMLTextAreaElement>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editText, setEditText] = useState(c.content);
+  const itemRef = useRef<HTMLDivElement>(null);
+  const isTarget = highlightId === c.id;
+  const [glow, setGlow] = useState(isTarget);
+  useEffect(() => {
+    if (!isTarget) return;
+    const t1 = setTimeout(() => {
+      itemRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 350);
+    const t2 = setTimeout(() => setGlow(false), 2800);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [isTarget]);
 
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: ["comments", slug] });
@@ -149,7 +165,13 @@ function CommentItem({
   }
 
   return (
-    <div className="flex gap-3">
+    <div
+      ref={itemRef}
+      className={
+        "-mx-2 flex gap-3 rounded-lg px-2 py-1.5 transition-colors duration-1000 " +
+        (glow ? "bg-primary/10" : "bg-transparent")
+      }
+    >
       <Avatar name={c.author.username} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -302,6 +324,7 @@ function CommentItem({
                 slug={slug}
                 currentUserId={currentUserId}
                 token={token}
+                highlightId={highlightId}
               />
             ))}
           </div>
@@ -311,7 +334,15 @@ function CommentItem({
   );
 }
 
-export function Comments({ slug, embedded }: { slug: string; embedded?: boolean }) {
+export function Comments({
+  slug,
+  embedded,
+  highlightId,
+}: {
+  slug: string;
+  embedded?: boolean;
+  highlightId?: string | null;
+}) {
   const token = useAuth((s) => s.accessToken);
   const currentUserId = useAuth((s) => s.user?.id);
   const qc = useQueryClient();
@@ -332,6 +363,13 @@ export function Comments({ slug, embedded }: { slug: string; embedded?: boolean 
   });
 
   const count = comments?.length ?? 0;
+  // Yuqori darajadagi izohlar: eng yangisi tepada (javoblar ichida xronologik qoladi)
+  const sorted = comments
+    ? [...comments].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+    : [];
 
   return (
     <section className={embedded ? "" : "mt-14 border-t border-border pt-10"}>
@@ -389,13 +427,14 @@ export function Comments({ slug, embedded }: { slug: string; embedded?: boolean 
             Hozircha izoh yo&apos;q. Birinchi bo&apos;ling!
           </p>
         ) : (
-          comments!.map((c) => (
+          sorted.map((c) => (
             <CommentItem
               key={c.id}
               c={c}
               slug={slug}
               currentUserId={currentUserId}
               token={token}
+              highlightId={highlightId}
             />
           ))
         )}

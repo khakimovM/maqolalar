@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   useMutation,
   useQuery,
@@ -40,10 +40,11 @@ function fmtDate(s: string | null) {
   });
 }
 
-export default function ArticlePage() {
+function ArticleContent() {
   const params = useParams();
   const slug = String(params.slug);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const token = useAuth((s) => s.accessToken);
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -73,6 +74,7 @@ export default function ArticlePage() {
   const [saved, setSaved] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const likeMut = useMutation({
     mutationFn: () => toggleLike(data!.id),
@@ -121,6 +123,15 @@ export default function ArticlePage() {
     const target = topAbs + (p / 100) * height - window.innerHeight * 0.35;
     window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
   }
+
+  // Bildirishnomadan ?comment kelsa — izohlar panelini ochib, o'sha izohni belgilaymiz
+  const commentParam = searchParams.get("comment");
+  useEffect(() => {
+    if (commentParam) {
+      setHighlightId(commentParam);
+      setSheetOpen(true);
+    }
+  }, [commentParam]);
 
   // Sheet ochilganda sahifa scroll'ini qulflaymiz
   useEffect(() => {
@@ -362,7 +373,7 @@ export default function ArticlePage() {
                 </button>
               </div>
               <div className="overflow-y-auto px-5 py-4">
-                <Comments slug={slug} embedded />
+                <Comments slug={slug} embedded highlightId={highlightId} />
               </div>
             </motion.div>
           </motion.div>
@@ -401,5 +412,19 @@ function PillBtn({
       {icon}
       {label && <span className="tabular-nums">{label}</span>}
     </button>
+  );
+}
+
+export default function ArticlePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-3xl px-6 py-12">
+          <div className="h-72 animate-pulse rounded bg-muted" />
+        </div>
+      }
+    >
+      <ArticleContent />
+    </Suspense>
   );
 }

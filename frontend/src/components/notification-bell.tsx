@@ -22,7 +22,6 @@ import {
 } from "@/lib/notifications";
 import { useAuth } from "@/lib/store/auth";
 
-
 function TypeIcon({ type }: { type: NotificationType }) {
   const cls = "h-4 w-4";
   if (type === "NEW_LIKE") return <Heart className={cls + " text-rose-500"} />;
@@ -71,7 +70,9 @@ export function NotificationBell({ align = "right" }: { align?: "left" | "right"
   function onItem(n: AppNotification) {
     if (!n.isRead) readMut.mutate(n.id);
     if (n.article) {
-      router.push(`/articles/${n.article.slug}`);
+      // Izoh turlari uchun referenceId = comment id → uni belgilash uchun URL'ga qo'shamiz
+      const suffix = n.type === "NEW_LIKE" ? "" : `?comment=${n.referenceId}`;
+      router.push(`/articles/${n.article.slug}${suffix}`);
       setOpen(false);
     }
   }
