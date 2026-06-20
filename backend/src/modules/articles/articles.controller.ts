@@ -51,6 +51,13 @@ export class ArticlesController {
     return this.articlesService.findAll(query, user);
   }
 
+  /** SEO meta (title/excerpt/cover) — viewCount oshmaydi, premium uchun ham ochiq. */
+  @Public()
+  @Get(':slug/meta')
+  findMetaBySlug(@Param('slug') slug: string) {
+    return this.articlesService.findMetaBySlug(slug);
+  }
+
   @Public()
   @Get(':slug')
   findBySlug(

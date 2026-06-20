@@ -112,6 +112,35 @@ export class ArticlesService {
     };
   }
 
+  /**
+   * SEO metadata uchun yengil ma'lumot — viewCount oshmaydi va content
+   * qaytarilmaydi. Premium maqolalar uchun ham ochiq (faqat meta, matn emas).
+   */
+  async findMetaBySlug(slug: string) {
+    const article = await this.prisma.article.findUnique({
+      where: { slug },
+      select: {
+        title: true,
+        slug: true,
+        excerpt: true,
+        coverImage: true,
+        type: true,
+        status: true,
+        publishedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        author: { select: { username: true } },
+        category: { select: { name: true, slug: true } },
+      },
+    });
+
+    if (!article || article.status !== ArticleStatus.PUBLISHED) {
+      throw new NotFoundException('Maqola topilmadi');
+    }
+
+    return { data: article, message: 'OK' };
+  }
+
   // ==========================================================
   // ADMIN: CRUD
   // ==========================================================

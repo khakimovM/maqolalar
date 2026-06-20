@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   FileText,
@@ -20,12 +21,12 @@ import { useAuth } from "@/lib/store/auth";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
 
 const NAV = [
-  { href: "/", label: "Boshqaruv", icon: LayoutDashboard, exact: true },
-  { href: "/articles", label: "Maqolalar", icon: FileText },
-  { href: "/reported", label: "Shikoyatlar", icon: Flag },
-  { href: "/categories", label: "Kategoriyalar", icon: FolderTree, super: true },
-  { href: "/admins", label: "Adminlar", icon: Users, super: true },
-  { href: "/profile", label: "Profil", icon: User },
+  { href: "/", label: "Boshqaruv", short: "Asosiy", icon: LayoutDashboard, exact: true },
+  { href: "/articles", label: "Maqolalar", short: "Maqola", icon: FileText },
+  { href: "/reported", label: "Shikoyatlar", short: "Shikoyat", icon: Flag },
+  { href: "/categories", label: "Kategoriyalar", short: "Bo'lim", icon: FolderTree, super: true },
+  { href: "/admins", label: "Adminlar", short: "Admin", icon: Users, super: true },
+  { href: "/profile", label: "Profil", short: "Profil", icon: User },
 ];
 
 export default function PanelLayout({
@@ -61,7 +62,6 @@ export default function PanelLayout({
   }
 
   const links = NAV.filter((n) => !n.super || isSuper);
-  // Profil — mobil yuqori barda; pastki barda esa asosiy bo'limlar
   const bottomLinks = links.filter((n) => n.href !== "/profile");
   const profileActive = pathname.startsWith("/profile");
   const isActive = (n: (typeof NAV)[number]) =>
@@ -131,7 +131,7 @@ export default function PanelLayout({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobil yuqori bar — logo + notification + theme + profil */}
+        {/* Mobil yuqori bar */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur md:hidden">
           <Link href="/" className="flex items-center gap-2 text-base font-medium tracking-tight">
             <LayoutDashboard className="h-5 w-5 text-primary" />
@@ -155,29 +155,48 @@ export default function PanelLayout({
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 px-5 py-8 pb-24 sm:px-8 md:pb-8">
+        <main className="min-w-0 flex-1 px-5 py-8 pb-28 sm:px-8 md:pb-8">
           {children}
         </main>
       </div>
 
-      {/* Mobil pastki navigatsiya — Instagram uslubi */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-        {bottomLinks.map((n) => {
-          const active = isActive(n);
-          return (
-            <Link
-              key={n.href}
-              href={n.href}
-              className={
-                "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors " +
-                (active ? "text-primary" : "text-muted-foreground hover:text-foreground")
-              }
-            >
-              <n.icon className={"h-5 w-5 " + (active ? "scale-110" : "")} />
-              {n.label}
-            </Link>
-          );
-        })}
+      {/* Mobil pastki navigatsiya — suzuvchi panel */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 md:hidden">
+        <div className="mx-3 mb-3 flex items-stretch justify-around gap-1 rounded-2xl border border-border bg-card/90 p-1.5 shadow-lg shadow-black/10 backdrop-blur-xl">
+          {bottomLinks.map((n) => {
+            const active = isActive(n);
+            return (
+              <Link
+                key={n.href}
+                href={n.href}
+                aria-label={n.label}
+                className="relative flex flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2"
+              >
+                {active && (
+                  <motion.span
+                    layoutId="nav-active-pill"
+                    className="absolute inset-0 rounded-xl bg-primary/12"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <n.icon
+                  className={
+                    "relative z-10 h-[22px] w-[22px] transition-colors " +
+                    (active ? "text-primary" : "text-muted-foreground")
+                  }
+                />
+                <span
+                  className={
+                    "relative z-10 text-[10px] leading-none transition-colors " +
+                    (active ? "font-semibold text-primary" : "text-muted-foreground")
+                  }
+                >
+                  {n.short}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );
