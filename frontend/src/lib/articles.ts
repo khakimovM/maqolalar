@@ -73,12 +73,13 @@ export async function addComment(
   return res.data.data;
 }
 
-/** Izohga javob. POST /comments/:id/reply */
+/** Izohga javob. POST /comments/:id/reply — yangi javob id'sini qaytaradi. */
 export async function replyComment(
   commentId: string,
   content: string,
-): Promise<void> {
-  await api.post(`/comments/${commentId}/reply`, { content });
+): Promise<string> {
+  const res = await api.post(`/comments/${commentId}/reply`, { content });
+  return res.data.data.id as string;
 }
 
 /** O'z izohini tahrirlash. PUT /comments/:id */

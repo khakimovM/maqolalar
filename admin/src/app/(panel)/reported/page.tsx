@@ -41,7 +41,7 @@ function ReportedCard({
     const t1 = setTimeout(() => {
       ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 200);
-    const t2 = setTimeout(() => setGlow(false), 2800);
+    const t2 = setTimeout(() => setGlow(false), 800);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -52,7 +52,7 @@ function ReportedCard({
     <div
       ref={ref}
       className={
-        "rounded-xl border bg-card p-4 transition-colors duration-1000 " +
+        "rounded-xl border bg-card p-4 transition-colors duration-700 " +
         (glow ? "border-primary bg-primary/10" : "border-border")
       }
     >

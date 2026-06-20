@@ -108,10 +108,7 @@ function EmojiMenu({ editor }: { editor: Editor }) {
             <button
               key={e}
               type="button"
-              onClick={() => {
-                editor.chain().focus().insertContent(e).run();
-                setOpen(false);
-              }}
+              onClick={() => editor.chain().focus().insertContent(e).run()}
               className="flex h-7 w-7 items-center justify-center rounded text-lg transition-colors hover:bg-muted"
             >
               {e}

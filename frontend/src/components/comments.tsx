@@ -27,6 +27,9 @@ import { useToast } from "@/components/toast";
 import { useConfirm, usePrompt } from "@/components/confirm-dialog";
 import { EmojiPicker } from "@/components/emoji-picker";
 
+/** Bir vaqtda faqat bitta forma ochiq bo'ladi: qaysi izoh va qaysi rejim. */
+type ActiveForm = { id: string; mode: "edit" | "reply" } | null;
+
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString("en-GB", {
     day: "numeric",
@@ -86,23 +89,33 @@ function CommentItem({
   currentUserId,
   token,
   highlightId,
+  onHighlight,
+  activeForm,
+  setActiveForm,
 }: {
   c: CommentNode;
   slug: string;
   currentUserId?: string;
   token: string | null;
   highlightId?: string | null;
+  onHighlight?: (id: string) => void;
+  activeForm: ActiveForm;
+  setActiveForm: (f: ActiveForm) => void;
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const confirm = useConfirm();
   const prompt = usePrompt();
-  const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
   const replyRef = useRef<HTMLTextAreaElement>(null);
-  const [editOpen, setEditOpen] = useState(false);
   const [editText, setEditText] = useState(c.content);
+  const editRef = useRef<HTMLTextAreaElement>(null);
   const itemRef = useRef<HTMLDivElement>(null);
+
+  // Bir vaqtda bitta forma: holat yuqoridan keladi
+  const replyOpen = activeForm?.id === c.id && activeForm.mode === "reply";
+  const editOpen = activeForm?.id === c.id && activeForm.mode === "edit";
+
   const isTarget = highlightId === c.id;
   const [glow, setGlow] = useState(isTarget);
   useEffect(() => {
@@ -110,7 +123,7 @@ function CommentItem({
     const t1 = setTimeout(() => {
       itemRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 350);
-    const t2 = setTimeout(() => setGlow(false), 2800);
+    const t2 = setTimeout(() => setGlow(false), 800);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -122,16 +135,17 @@ function CommentItem({
 
   const replyMut = useMutation({
     mutationFn: () => replyComment(c.id, replyText.trim()),
-    onSuccess: () => {
+    onSuccess: (newId) => {
       setReplyText("");
-      setReplyOpen(false);
+      setActiveForm(null);
+      onHighlight?.(newId);
       invalidate();
     },
   });
   const editMut = useMutation({
     mutationFn: () => editComment(c.id, editText.trim()),
     onSuccess: () => {
-      setEditOpen(false);
+      setActiveForm(null);
       invalidate();
     },
   });
@@ -168,7 +182,7 @@ function CommentItem({
     <div
       ref={itemRef}
       className={
-        "-mx-2 flex gap-3 rounded-lg px-2 py-1.5 transition-colors duration-1000 " +
+        "-mx-2 flex gap-3 rounded-lg px-2 py-1.5 transition-colors duration-700 " +
         (glow ? "bg-primary/10" : "bg-transparent")
       }
     >
@@ -192,13 +206,22 @@ function CommentItem({
             }}
             className="mt-2"
           >
-            <textarea
-              value={editText}
-              onChange={(e) => setEditText(e.target.value)}
-              rows={2}
-              maxLength={2000}
-              className="w-full resize-none rounded-lg border border-border bg-card p-2.5 text-sm outline-none focus:border-primary"
-            />
+            <div className="flex items-start gap-2">
+              <textarea
+                ref={editRef}
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                rows={2}
+                maxLength={2000}
+                autoFocus
+                className="flex-1 resize-none rounded-lg border border-border bg-card p-2.5 text-sm outline-none focus:border-primary"
+              />
+              <EmojiPicker
+                onPick={(em) =>
+                  insertAtCursor(editRef, editText, setEditText, em)
+                }
+              />
+            </div>
             <div className="mt-1.5 flex gap-2">
               <button
                 type="submit"
@@ -210,7 +233,7 @@ function CommentItem({
               <button
                 type="button"
                 onClick={() => {
-                  setEditOpen(false);
+                  setActiveForm(null);
                   setEditText(c.content);
                 }}
                 className="rounded-full border border-border px-4 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
@@ -233,7 +256,11 @@ function CommentItem({
         {/* Amallar */}
         {canAct && !editOpen && (
           <div className="mt-2 flex flex-wrap items-center gap-4">
-            <ActionBtn onClick={() => setReplyOpen((o) => !o)}>
+            <ActionBtn
+              onClick={() =>
+                setActiveForm(replyOpen ? null : { id: c.id, mode: "reply" })
+              }
+            >
               <CornerDownRight className="h-3.5 w-3.5" />
               Javob
             </ActionBtn>
@@ -242,7 +269,7 @@ function CommentItem({
                 <ActionBtn
                   onClick={() => {
                     setEditText(c.content);
-                    setEditOpen(true);
+                    setActiveForm({ id: c.id, mode: "edit" });
                   }}
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -304,7 +331,7 @@ function CommentItem({
               </button>
               <button
                 type="button"
-                onClick={() => setReplyOpen(false)}
+                onClick={() => setActiveForm(null)}
                 className="mt-1 rounded-md p-1 text-muted-foreground hover:text-foreground"
                 aria-label="Yopish"
               >
@@ -325,6 +352,9 @@ function CommentItem({
                 currentUserId={currentUserId}
                 token={token}
                 highlightId={highlightId}
+                onHighlight={onHighlight}
+                activeForm={activeForm}
+                setActiveForm={setActiveForm}
               />
             ))}
           </div>
@@ -348,6 +378,8 @@ export function Comments({
   const qc = useQueryClient();
   const [text, setText] = useState("");
   const mainRef = useRef<HTMLTextAreaElement>(null);
+  const [addedId, setAddedId] = useState<string | null>(null);
+  const [activeForm, setActiveForm] = useState<ActiveForm>(null);
 
   const { data: comments, isLoading } = useQuery({
     queryKey: ["comments", slug],
@@ -356,8 +388,9 @@ export function Comments({
 
   const mutation = useMutation({
     mutationFn: () => addComment(slug, text.trim()),
-    onSuccess: () => {
+    onSuccess: (created) => {
       setText("");
+      setAddedId(created.id);
       qc.invalidateQueries({ queryKey: ["comments", slug] });
     },
   });
@@ -434,7 +467,10 @@ export function Comments({
               slug={slug}
               currentUserId={currentUserId}
               token={token}
-              highlightId={highlightId}
+              highlightId={addedId ?? highlightId}
+              onHighlight={setAddedId}
+              activeForm={activeForm}
+              setActiveForm={setActiveForm}
             />
           ))
         )}
