@@ -21,6 +21,8 @@ const SAFE_USER_SELECT = {
   createdAt: true,
 } as const;
 
+type Bucket = { start: Date; end: Date; label: string };
+
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
@@ -76,7 +78,6 @@ export class AdminService {
       select: SAFE_USER_SELECT,
     });
 
-    // Bloklanganda barcha sessiyalarni bekor qilamiz
     if (!isActive) {
       await this.prisma.refreshToken.deleteMany({ where: { userId: id } });
     }
@@ -87,7 +88,7 @@ export class AdminService {
     };
   }
 
-  /** Umumiy statistika + tanlangan oraliqdagi yangi yozuvlar. */
+  /** Umumiy (barcha vaqt) jami ko'rsatkichlar. */
   async stats(query: StatsQueryDto) {
     const { from, to } = this.resolveRange(query);
 
@@ -99,6 +100,7 @@ export class AdminService {
       comments,
       categories,
       viewsAgg,
+      emails,
       newUsers,
       newArticles,
     ] = await Promise.all([
@@ -109,6 +111,7 @@ export class AdminService {
       this.prisma.comment.count({ where: { isDeleted: false } }),
       this.prisma.category.count(),
       this.prisma.article.aggregate({ _sum: { viewCount: true } }),
+      this.prisma.emailLog.count(),
       this.prisma.user.count({ where: { createdAt: { gte: from, lte: to } } }),
       this.prisma.article.count({
         where: { createdAt: { gte: from, lte: to } },
@@ -125,30 +128,177 @@ export class AdminService {
           comments,
           categories,
           views: viewsAgg._sum.viewCount ?? 0,
+          emails,
         },
-        range: {
-          from,
-          to,
-          newUsers,
-          newArticles,
-        },
+        range: { from, to, newUsers, newArticles },
       },
       message: 'Statistika',
     };
   }
 
-  /** period yoki from/to dan [from, to] oralig'ini hisoblaydi. */
+  /**
+   * Vaqt qatorlari (o'sish grafiklari uchun): tanlangan davrga qarab
+   * guruhlangan — foydalanuvchi, maqola, email, ko'rish, izoh.
+   */
+  async timeseries(query: StatsQueryDto) {
+    const buckets = this.buildBuckets(query);
+    const rangeStart = buckets[0].start;
+    const rangeEnd = buckets[buckets.length - 1].end;
+    const range = { gte: rangeStart, lt: rangeEnd };
+
+    const [users, articles, emails, views, comments] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { role: Role.USER, createdAt: range },
+        select: { createdAt: true },
+      }),
+      this.prisma.article.findMany({
+        where: { createdAt: range },
+        select: { createdAt: true },
+      }),
+      this.prisma.emailLog.findMany({
+        where: { createdAt: range },
+        select: { createdAt: true },
+      }),
+      this.prisma.articleView.findMany({
+        where: { createdAt: range },
+        select: { createdAt: true },
+      }),
+      this.prisma.comment.findMany({
+        where: { createdAt: range },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    const bucketize = (rows: { createdAt: Date }[]): number[] => {
+      const counts = new Array<number>(buckets.length).fill(0);
+      for (const r of rows) {
+        const t = r.createdAt.getTime();
+        for (let i = 0; i < buckets.length; i++) {
+          if (t >= buckets[i].start.getTime() && t < buckets[i].end.getTime()) {
+            counts[i] += 1;
+            break;
+          }
+        }
+      }
+      return counts;
+    };
+
+    // Email holati/turlari — tanlangan davr ichida
+    const [sent, failed, verification, reset, changeEmail] = await Promise.all([
+      this.prisma.emailLog.count({ where: { createdAt: range, status: EmailStatus.SENT } }),
+      this.prisma.emailLog.count({ where: { createdAt: range, status: EmailStatus.FAILED } }),
+      this.prisma.emailLog.count({ where: { createdAt: range, type: EmailType.VERIFICATION } }),
+      this.prisma.emailLog.count({ where: { createdAt: range, type: EmailType.RESET } }),
+      this.prisma.emailLog.count({ where: { createdAt: range, type: EmailType.CHANGE_EMAIL } }),
+    ]);
+
+    return {
+      data: {
+        buckets: buckets.map((b) => b.label),
+        series: {
+          users: bucketize(users),
+          articles: bucketize(articles),
+          emails: bucketize(emails),
+          views: bucketize(views),
+          comments: bucketize(comments),
+        },
+        email: { sent, failed, verification, reset, changeEmail },
+      },
+      message: 'Vaqt qatorlari',
+    };
+  }
+
+  // ── yordamchi: davrni bucketlarga bo'lish ──────────────────
+
+  private dm(d: Date): string {
+    return `${String(d.getDate()).padStart(2, '0')}/${String(
+      d.getMonth() + 1,
+    ).padStart(2, '0')}`;
+  }
+  private my(d: Date): string {
+    return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(
+      d.getFullYear(),
+    ).slice(2)}`;
+  }
+
+  private buildBuckets(query: StatsQueryDto): Bucket[] {
+    const now = new Date();
+    const buckets: Bucket[] = [];
+
+    // Maxsus oraliq — kunlik (>62 kun bo'lsa oylik)
+    if (query.from) {
+      const from = new Date(query.from);
+      from.setHours(0, 0, 0, 0);
+      const to = query.to ? new Date(query.to) : now;
+      const days = Math.ceil((to.getTime() - from.getTime()) / 86400000) + 1;
+      if (days <= 62) {
+        for (let i = 0; i < days; i++) {
+          const s = new Date(from);
+          s.setDate(s.getDate() + i);
+          const e = new Date(s);
+          e.setDate(e.getDate() + 1);
+          buckets.push({ start: s, end: e, label: this.dm(s) });
+        }
+      } else {
+        const cur = new Date(from.getFullYear(), from.getMonth(), 1);
+        while (cur <= to) {
+          const s = new Date(cur);
+          const e = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+          buckets.push({ start: s, end: e, label: this.my(s) });
+          cur.setMonth(cur.getMonth() + 1);
+        }
+      }
+      return buckets;
+    }
+
+    switch (query.period) {
+      case 'monthly': {
+        // oxirgi 12 oy
+        for (let i = 11; i >= 0; i--) {
+          const s = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const e = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+          buckets.push({ start: s, end: e, label: this.my(s) });
+        }
+        break;
+      }
+      case 'yearly': {
+        // oxirgi 5 yil
+        const y = now.getFullYear();
+        for (let i = 4; i >= 0; i--) {
+          const s = new Date(y - i, 0, 1);
+          const e = new Date(y - i + 1, 0, 1);
+          buckets.push({ start: s, end: e, label: String(y - i) });
+        }
+        break;
+      }
+      case 'daily':
+      default: {
+        // oxirgi 14 kun
+        const start = new Date(now);
+        start.setHours(0, 0, 0, 0);
+        start.setDate(start.getDate() - 13);
+        for (let i = 0; i < 14; i++) {
+          const s = new Date(start);
+          s.setDate(s.getDate() + i);
+          const e = new Date(s);
+          e.setDate(e.getDate() + 1);
+          buckets.push({ start: s, end: e, label: this.dm(s) });
+        }
+        break;
+      }
+    }
+    return buckets;
+  }
+
+  /** period yoki from/to dan [from, to] oralig'ini hisoblaydi (jami stats uchun). */
   private resolveRange(query: StatsQueryDto): { from: Date; to: Date } {
     const now = new Date();
-
-    // Maxsus oraliq ustunlikka ega
     if (query.from) {
       return {
         from: new Date(query.from),
         to: query.to ? new Date(query.to) : now,
       };
     }
-
     const from = new Date(now);
     switch (query.period) {
       case 'daily':
@@ -165,66 +315,5 @@ export class AdminService {
         break;
     }
     return { from, to: now };
-  }
-
-  /**
-   * Email yuborish statistikasi: jami/davr bo'yicha son, holat (sent/failed),
-   * turlari bo'yicha taqsimot va so'nggi 14 kunlik o'sish grafigi.
-   */
-  async emailStats() {
-    const now = new Date();
-
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const weekAgo = new Date(startOfDay);
-    weekAgo.setDate(weekAgo.getDate() - 6); // bugun + oldingi 6 kun = 7 kun
-
-    const monthStart = new Date(now);
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-
-    const DAYS = 14;
-    const seriesStart = new Date(startOfDay);
-    seriesStart.setDate(seriesStart.getDate() - (DAYS - 1));
-
-    // So'nggi 14 kun uchun kunlik count (timezone'ga mos chegaralar bilan)
-    const dayCounts = await Promise.all(
-      Array.from({ length: DAYS }).map((_, i) => {
-        const start = new Date(seriesStart);
-        start.setDate(start.getDate() + i);
-        const end = new Date(start);
-        end.setDate(end.getDate() + 1);
-        const date = `${start.getFullYear()}-${String(
-          start.getMonth() + 1,
-        ).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
-        return this.prisma.emailLog
-          .count({ where: { createdAt: { gte: start, lt: end } } })
-          .then((count) => ({ date, count }));
-      }),
-    );
-
-    const [all, today, week, month, sent, failed, verification, reset, changeEmail] =
-      await Promise.all([
-        this.prisma.emailLog.count(),
-        this.prisma.emailLog.count({ where: { createdAt: { gte: startOfDay } } }),
-        this.prisma.emailLog.count({ where: { createdAt: { gte: weekAgo } } }),
-        this.prisma.emailLog.count({ where: { createdAt: { gte: monthStart } } }),
-        this.prisma.emailLog.count({ where: { status: EmailStatus.SENT } }),
-        this.prisma.emailLog.count({ where: { status: EmailStatus.FAILED } }),
-        this.prisma.emailLog.count({ where: { type: EmailType.VERIFICATION } }),
-        this.prisma.emailLog.count({ where: { type: EmailType.RESET } }),
-        this.prisma.emailLog.count({ where: { type: EmailType.CHANGE_EMAIL } }),
-      ]);
-
-    return {
-      data: {
-        totals: { today, week, month, all },
-        status: { sent, failed },
-        byType: { verification, reset, changeEmail },
-        series: dayCounts,
-      },
-      message: 'Email statistikasi',
-    };
   }
 }

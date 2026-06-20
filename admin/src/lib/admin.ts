@@ -53,6 +53,7 @@ export interface AdminStats {
     comments: number;
     categories: number;
     views: number;
+    emails: number;
   };
   range: { from: string; to: string; newUsers: number; newArticles: number };
 }
@@ -130,16 +131,31 @@ export async function fetchStats(params?: {
   return res.data.data;
 }
 
-export interface EmailStats {
-  totals: { today: number; week: number; month: number; all: number };
-  status: { sent: number; failed: number };
-  byType: { verification: number; reset: number; changeEmail: number };
-  series: { date: string; count: number }[];
+export interface Timeseries {
+  buckets: string[];
+  series: {
+    users: number[];
+    articles: number[];
+    emails: number[];
+    views: number[];
+    comments: number[];
+  };
+  email: {
+    sent: number;
+    failed: number;
+    verification: number;
+    reset: number;
+    changeEmail: number;
+  };
 }
 
-/** Email yuborish statistikasi (SUPERADMIN). */
-export async function fetchEmailStats(): Promise<EmailStats> {
-  const res = await api.get("/admin/email-stats");
+/** O'sish grafiklari uchun vaqt qatorlari (SUPERADMIN). */
+export async function fetchTimeseries(params?: {
+  period?: "daily" | "monthly" | "yearly";
+  from?: string;
+  to?: string;
+}): Promise<Timeseries> {
+  const res = await api.get("/admin/timeseries", { params });
   return res.data.data;
 }
 

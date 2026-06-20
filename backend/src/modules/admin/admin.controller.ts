@@ -35,15 +35,15 @@ export class AdminController {
     return this.adminService.setActive(id, true);
   }
 
-  /** Umumiy statistika. ?period=daily|monthly|yearly yoki ?from=&to= */
+  /** Umumiy (barcha vaqt) jami statistika. */
   @Get('stats')
   stats(@Query() query: StatsQueryDto) {
     return this.adminService.stats(query);
   }
 
-  /** Email yuborish statistikasi (kunlik o'sish grafigi + jami). */
-  @Get('email-stats')
-  emailStats() {
-    return this.adminService.emailStats();
+  /** O'sish grafiklari uchun vaqt qatorlari. ?period= yoki ?from=&to= */
+  @Get('timeseries')
+  timeseries(@Query() query: StatsQueryDto) {
+    return this.adminService.timeseries(query);
   }
 }

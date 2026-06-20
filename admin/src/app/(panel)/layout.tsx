@@ -61,9 +61,15 @@ export default function PanelLayout({
   }
 
   const links = NAV.filter((n) => !n.super || isSuper);
+  // Profil — mobil yuqori barda; pastki barda esa asosiy bo'limlar
+  const bottomLinks = links.filter((n) => n.href !== "/profile");
+  const profileActive = pathname.startsWith("/profile");
+  const isActive = (n: (typeof NAV)[number]) =>
+    n.exact ? pathname === n.href : pathname.startsWith(n.href);
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
+      {/* Desktop yon panel */}
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border bg-card/40 px-4 py-6 md:flex">
         <div className="mb-8 flex items-center justify-between px-2">
           <Link href="/" className="flex items-center gap-2 text-lg font-medium tracking-tight">
@@ -78,7 +84,7 @@ export default function PanelLayout({
 
         <nav className="flex flex-1 flex-col gap-1">
           {links.map((n) => {
-            const active = n.exact ? pathname === n.href : pathname.startsWith(n.href);
+            const active = isActive(n);
             return (
               <Link
                 key={n.href}
@@ -125,31 +131,54 @@ export default function PanelLayout({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-card/40 px-3 py-2 md:hidden">
-          {links.map((n) => {
-            const active = n.exact ? pathname === n.href : pathname.startsWith(n.href);
-            return (
-              <Link
-                key={n.href}
-                href={n.href}
-                className={
-                  "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors " +
-                  (active ? "bg-primary/10 text-primary" : "text-muted-foreground")
-                }
-              >
-                <n.icon className="h-4 w-4" />
-                {n.label}
-              </Link>
-            );
-          })}
-          <div className="ml-auto flex shrink-0 items-center gap-1">
+        {/* Mobil yuqori bar — logo + notification + theme + profil */}
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur md:hidden">
+          <Link href="/" className="flex items-center gap-2 text-base font-medium tracking-tight">
+            <LayoutDashboard className="h-5 w-5 text-primary" />
+            Admin
+          </Link>
+          <div className="flex items-center gap-1">
             <NotificationBell />
             <ThemeToggle />
+            <Link
+              href="/profile"
+              aria-label="Profil"
+              className={
+                "flex h-9 w-9 items-center justify-center rounded-full transition-colors " +
+                (profileActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground")
+              }
+            >
+              <User className="h-5 w-5" />
+            </Link>
           </div>
-        </div>
+        </header>
 
-        <main className="min-w-0 flex-1 px-5 py-8 sm:px-8">{children}</main>
+        <main className="min-w-0 flex-1 px-5 py-8 pb-24 sm:px-8 md:pb-8">
+          {children}
+        </main>
       </div>
+
+      {/* Mobil pastki navigatsiya — Instagram uslubi */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+        {bottomLinks.map((n) => {
+          const active = isActive(n);
+          return (
+            <Link
+              key={n.href}
+              href={n.href}
+              className={
+                "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors " +
+                (active ? "text-primary" : "text-muted-foreground hover:text-foreground")
+              }
+            >
+              <n.icon className={"h-5 w-5 " + (active ? "scale-110" : "")} />
+              {n.label}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

@@ -11,6 +11,8 @@ import {
   MailCheck,
   Pencil,
   ArrowLeft,
+  ExternalLink,
+  LogOut,
 } from "lucide-react";
 import { AvatarUploader } from "@/components/avatar-uploader";
 import { Field, FormError, SubmitButton } from "@/components/form";
@@ -25,6 +27,7 @@ import { apiError } from "@/lib/api";
 import { useAuth } from "@/lib/store/auth";
 
 const RESEND_SECONDS = 60;
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
 
 function RoleBadge({ role }: { role: string }) {
   const label = role === "SUPERADMIN" ? "Super admin" : "Admin";
@@ -341,6 +344,30 @@ export default function AdminProfilePage() {
             </SubmitButton>
           </div>
         </form>
+      </section>
+
+      {/* Mobil uchun hisob amallari (desktop'da yon panelda mavjud) */}
+      <section className="mt-6 space-y-1 rounded-xl border border-border bg-card p-3 md:hidden">
+        <a
+          href={SITE_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Saytni ochish
+        </a>
+        <button
+          type="button"
+          onClick={() => {
+            logout();
+            router.replace("/login");
+          }}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-destructive transition-colors hover:bg-destructive/10"
+        >
+          <LogOut className="h-4 w-4" />
+          Chiqish
+        </button>
       </section>
     </div>
   );
