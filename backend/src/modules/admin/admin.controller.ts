@@ -40,4 +40,10 @@ export class AdminController {
   stats(@Query() query: StatsQueryDto) {
     return this.adminService.stats(query);
   }
+
+  /** Email yuborish statistikasi (kunlik o'sish grafigi + jami). */
+  @Get('email-stats')
+  emailStats() {
+    return this.adminService.emailStats();
+  }
 }

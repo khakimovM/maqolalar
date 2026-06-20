@@ -308,3 +308,32 @@ model Notification {
   @@index([userId, isRead]) // o'qilmaganlar ro'yxati query'si
   @@map("notifications")
 }
+
+// ============================================================
+// EMAIL LOG — yuborilgan xatlar statistikasi
+// ============================================================
+
+enum EmailType {
+  VERIFICATION   // ro'yxatdan o'tish tasdiqlash kodi
+  RESET          // parol tiklash kodi
+  CHANGE_EMAIL   // yangi emailni tasdiqlash kodi
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+}
+
+model EmailLog {
+  id        String      @id @default(cuid())
+  type      EmailType
+  recipient String
+  status    EmailStatus
+  error     String?     // FAILED bo'lsa xato matni
+  createdAt DateTime    @default(now())
+
+  @@index([createdAt])
+  @@index([type])
+  @@index([status])
+  @@map("email_logs")
+}

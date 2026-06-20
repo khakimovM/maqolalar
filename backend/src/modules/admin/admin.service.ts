@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { EmailStatus, EmailType, Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
@@ -62,7 +62,7 @@ export class AdminService {
     return { data: admins, message: 'Adminlar ro\'yxati' };
   }
 
-  /** Adminni faollashtirish / bloklash. Faqat ADMIN rolига ta'sir qiladi. */
+  /** Adminni faollashtirish / bloklash. Faqat ADMIN roliga ta'sir qiladi. */
   async setActive(id: string, isActive: boolean) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Foydalanuvchi topilmadi');
@@ -165,5 +165,66 @@ export class AdminService {
         break;
     }
     return { from, to: now };
+  }
+
+  /**
+   * Email yuborish statistikasi: jami/davr bo'yicha son, holat (sent/failed),
+   * turlari bo'yicha taqsimot va so'nggi 14 kunlik o'sish grafigi.
+   */
+  async emailStats() {
+    const now = new Date();
+
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const weekAgo = new Date(startOfDay);
+    weekAgo.setDate(weekAgo.getDate() - 6); // bugun + oldingi 6 kun = 7 kun
+
+    const monthStart = new Date(now);
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const DAYS = 14;
+    const seriesStart = new Date(startOfDay);
+    seriesStart.setDate(seriesStart.getDate() - (DAYS - 1));
+
+    // So'nggi 14 kun uchun kunlik count (timezone'ga mos chegaralar bilan)
+    const dayCounts = await Promise.all(
+      Array.from({ length: DAYS }).map((_, i) => {
+        const start = new Date(seriesStart);
+        start.setDate(start.getDate() + i);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        const date = `${start.getFullYear()}-${String(
+          start.getMonth() + 1,
+        ).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+        return this.prisma.emailLog
+          .count({ where: { createdAt: { gte: start, lt: end } } })
+          .then((count) => ({ date, count }));
+      }),
+    );
+
+    const [all, today, week, month, sent, failed, verification, reset, changeEmail] =
+      await Promise.all([
+        this.prisma.emailLog.count(),
+        this.prisma.emailLog.count({ where: { createdAt: { gte: startOfDay } } }),
+        this.prisma.emailLog.count({ where: { createdAt: { gte: weekAgo } } }),
+        this.prisma.emailLog.count({ where: { createdAt: { gte: monthStart } } }),
+        this.prisma.emailLog.count({ where: { status: EmailStatus.SENT } }),
+        this.prisma.emailLog.count({ where: { status: EmailStatus.FAILED } }),
+        this.prisma.emailLog.count({ where: { type: EmailType.VERIFICATION } }),
+        this.prisma.emailLog.count({ where: { type: EmailType.RESET } }),
+        this.prisma.emailLog.count({ where: { type: EmailType.CHANGE_EMAIL } }),
+      ]);
+
+    return {
+      data: {
+        totals: { today, week, month, all },
+        status: { sent, failed },
+        byType: { verification, reset, changeEmail },
+        series: dayCounts,
+      },
+      message: 'Email statistikasi',
+    };
   }
 }

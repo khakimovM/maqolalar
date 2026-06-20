@@ -11,8 +11,19 @@ import {
   FolderTree,
   UserPlus,
   FilePlus2,
+  Mail,
+  Send,
+  CheckCircle2,
+  AlertTriangle,
+  KeyRound,
+  AtSign,
 } from "lucide-react";
-import { fetchMyAnalytics, fetchStats } from "@/lib/admin";
+import {
+  fetchMyAnalytics,
+  fetchStats,
+  fetchEmailStats,
+  type EmailStats,
+} from "@/lib/admin";
 import { useAuth } from "@/lib/store/auth";
 
 type Period = "daily" | "monthly" | "yearly" | "custom";
@@ -33,6 +44,89 @@ function StatCard({
         <Icon className="h-4 w-4 text-primary" />
       </div>
       <p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+/** So'nggi 14 kunlik email yuborish o'sish grafigi (yengil SVG). */
+function EmailGrowthChart({ series }: { series: EmailStats["series"] }) {
+  const W = 640;
+  const H = 200;
+  const padL = 10;
+  const padR = 10;
+  const padT = 16;
+  const padB = 26;
+  const n = series.length;
+  const max = Math.max(1, ...series.map((d) => d.count));
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  const x = (i: number) => padL + (n <= 1 ? innerW / 2 : (i * innerW) / (n - 1));
+  const y = (v: number) => padT + innerH - (v / max) * innerH;
+
+  const linePath = series
+    .map((d, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(d.count).toFixed(1)}`)
+    .join(" ");
+  const areaPath =
+    `M ${x(0).toFixed(1)} ${(padT + innerH).toFixed(1)} ` +
+    series.map((d, i) => `L ${x(i).toFixed(1)} ${y(d.count).toFixed(1)}`).join(" ") +
+    ` L ${x(n - 1).toFixed(1)} ${(padT + innerH).toFixed(1)} Z`;
+
+  const fmt = (s: string) => {
+    const [, m, d] = s.split("-");
+    return `${d}/${m}`;
+  };
+  // Ko'rsatiladigan x belgilari: birinchi, o'rta, oxirgi
+  const ticks = [0, Math.floor((n - 1) / 2), n - 1];
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-sm font-medium">So&apos;nggi 14 kun — yuborilgan xatlar</span>
+        <span className="text-xs text-muted-foreground">eng yuqori: {max}</span>
+      </div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="h-48 w-full text-primary"
+        preserveAspectRatio="none"
+      >
+        {/* gorizontal panjara */}
+        {[0, 0.5, 1].map((t) => (
+          <line
+            key={t}
+            x1={padL}
+            x2={W - padR}
+            y1={padT + innerH * t}
+            y2={padT + innerH * t}
+            className="stroke-border"
+            strokeWidth={1}
+          />
+        ))}
+        <path d={areaPath} fill="currentColor" opacity={0.12} />
+        <path
+          d={linePath}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {series.map((d, i) => (
+          <circle key={i} cx={x(i)} cy={y(d.count)} r={2.5} fill="currentColor" />
+        ))}
+        {ticks.map((i) => (
+          <text
+            key={i}
+            x={x(i)}
+            y={H - 8}
+            textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"}
+            className="fill-muted-foreground"
+            fontSize={11}
+          >
+            {fmt(series[i].date)}
+          </text>
+        ))}
+      </svg>
     </div>
   );
 }
@@ -59,6 +153,12 @@ export default function AdminDashboard() {
         : period === "custom"
           ? fetchStats({ period: "monthly" })
           : fetchStats({ period }),
+    enabled: isSuper,
+  });
+
+  const emailStats = useQuery({
+    queryKey: ["admin-email-stats"],
+    queryFn: fetchEmailStats,
     enabled: isSuper,
   });
 
@@ -151,6 +251,47 @@ export default function AdminDashboard() {
               </div>
             </>
           ) : null}
+        </section>
+      )}
+
+      {isSuper && (
+        <section className="mb-10">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Mail className="h-4 w-4" /> Email yuborish
+          </h2>
+          {emailStats.isLoading ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-24 animate-pulse rounded-xl bg-muted/40" />
+                ))}
+              </div>
+              <div className="h-60 animate-pulse rounded-xl bg-muted/40" />
+            </div>
+          ) : emailStats.data ? (
+            <>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <StatCard label="Bugun" value={emailStats.data.totals.today} icon={Mail} />
+                <StatCard label="Shu hafta" value={emailStats.data.totals.week} icon={Mail} />
+                <StatCard label="Shu oy" value={emailStats.data.totals.month} icon={Mail} />
+                <StatCard label="Jami" value={emailStats.data.totals.all} icon={Mail} />
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                <StatCard label="Yetkazilgan" value={emailStats.data.status.sent} icon={CheckCircle2} />
+                <StatCard label="Xato" value={emailStats.data.status.failed} icon={AlertTriangle} />
+                <StatCard label="Ro'yxatdan o'tish" value={emailStats.data.byType.verification} icon={UserPlus} />
+                <StatCard label="Parol tiklash" value={emailStats.data.byType.reset} icon={KeyRound} />
+                <StatCard label="Email o'zgartirish" value={emailStats.data.byType.changeEmail} icon={AtSign} />
+              </div>
+              <div className="mt-4">
+                <EmailGrowthChart series={emailStats.data.series} />
+              </div>
+            </>
+          ) : (
+            <p className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+              <Send className="h-4 w-4" /> Hozircha email yuborilmagan.
+            </p>
+          )}
         </section>
       )}
 

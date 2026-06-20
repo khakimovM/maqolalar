@@ -130,6 +130,19 @@ export async function fetchStats(params?: {
   return res.data.data;
 }
 
+export interface EmailStats {
+  totals: { today: number; week: number; month: number; all: number };
+  status: { sent: number; failed: number };
+  byType: { verification: number; reset: number; changeEmail: number };
+  series: { date: string; count: number }[];
+}
+
+/** Email yuborish statistikasi (SUPERADMIN). */
+export async function fetchEmailStats(): Promise<EmailStats> {
+  const res = await api.get("/admin/email-stats");
+  return res.data.data;
+}
+
 // ── Kategoriyalar (SUPERADMIN) ────────────────────────────
 
 export async function createCategory(name: string) {
