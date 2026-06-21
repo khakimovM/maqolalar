@@ -13,8 +13,8 @@ import { multerOptions } from './multer.config';
 import { MulterExceptionFilter } from './multer-exception.filter';
 import { Roles } from '../../common/decorators/roles.decorator';
 
-/** Yuklangan fayl tipini sodda ifodalash (Express.Multer.File). */
-type UploadedImage = { filename: string };
+/** Yuklangan fayl (memoryStorage — buffer mavjud). */
+type UploadedImage = { buffer: Buffer; mimetype: string; originalname: string };
 
 @Controller('upload')
 @UseFilters(MulterExceptionFilter)
@@ -23,7 +23,7 @@ export class UploadController {
 
   /** Avatar yuklash. Har qanday kirgan foydalanuvchi. */
   @Post('avatar')
-  @UseInterceptors(FileInterceptor('file', multerOptions('avatars')))
+  @UseInterceptors(FileInterceptor('file', multerOptions()))
   uploadAvatar(@UploadedFile() file?: UploadedImage) {
     return this.respond('avatars', file);
   }
@@ -31,7 +31,7 @@ export class UploadController {
   /** Maqola muqovasi. ADMIN+ */
   @Roles(Role.ADMIN)
   @Post('cover')
-  @UseInterceptors(FileInterceptor('file', multerOptions('covers')))
+  @UseInterceptors(FileInterceptor('file', multerOptions()))
   uploadCover(@UploadedFile() file?: UploadedImage) {
     return this.respond('covers', file);
   }
@@ -39,18 +39,16 @@ export class UploadController {
   /** Maqola ichidagi rasm (Tiptap editor). ADMIN+ */
   @Roles(Role.ADMIN)
   @Post('article-image')
-  @UseInterceptors(FileInterceptor('file', multerOptions('articles')))
+  @UseInterceptors(FileInterceptor('file', multerOptions()))
   uploadArticleImage(@UploadedFile() file?: UploadedImage) {
     return this.respond('articles', file);
   }
 
-  private respond(subdir: string, file?: UploadedImage) {
+  private async respond(subdir: string, file?: UploadedImage) {
     if (!file) {
       throw new BadRequestException('Fayl yuborilmadi (maydon nomi: file)');
     }
-    return {
-      data: { url: this.uploadService.toUrl(subdir, file.filename) },
-      message: 'Fayl yuklandi',
-    };
+    const url = await this.uploadService.saveImage(subdir, file.buffer);
+    return { data: { url }, message: 'Fayl yuklandi' };
   }
 }

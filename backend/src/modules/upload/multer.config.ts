@@ -1,14 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
-import { diskStorage } from 'multer';
-import { randomUUID } from 'crypto';
-import { extname, join } from 'path';
+import { memoryStorage } from 'multer';
 
-/** Ruxsat etilgan rasm MIME turlari. */
-export const ALLOWED_MIME = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-];
+/** Ruxsat etilgan rasm MIME turlari (arzon birinchi filtr). */
+export const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 
 /** Max fayl hajmi (bayt). .env MAX_FILE_SIZE bo'lmasa — 5MB. */
 export function maxFileSize(): number {
@@ -22,18 +16,15 @@ export function uploadRoot(): string {
 
 /**
  * FileInterceptor uchun multer sozlamalari.
- * subdir — avatars | covers | articles.
- * Fayl `<uuid>.<ext>` nomi bilan diskka yoziladi.
+ *
+ * Fayl DISKKA emas, XOTIRAGA (buffer) qabul qilinadi — shunda ishonchsiz
+ * baytlar diskka tushishidan oldin magic-byte bilan tekshiriladi va
+ * qayta kodlanadi (UploadService). MIME bu yerda faqat arzon birlamchi
+ * filtr (uni soxtalashtirish mumkin, haqiqiy tekshiruv service'da).
  */
-export function multerOptions(subdir: string) {
+export function multerOptions() {
   return {
-    storage: diskStorage({
-      destination: join(uploadRoot(), subdir),
-      filename: (_req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        cb(null, `${randomUUID()}${ext}`);
-      },
-    }),
+    storage: memoryStorage(),
     fileFilter: (
       _req: unknown,
       file: { mimetype: string },
@@ -44,7 +35,7 @@ export function multerOptions(subdir: string) {
       } else {
         cb(
           new BadRequestException(
-            "Faqat rasm yuklash mumkin (jpg, jpeg, png, webp)",
+            'Faqat rasm yuklash mumkin (jpg, jpeg, png, webp)',
           ),
           false,
         );
