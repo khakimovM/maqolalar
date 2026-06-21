@@ -10,6 +10,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { GithubStrategy } from './strategies/github.strategy';
 import { MailModule } from '../../mail/mail.module';
+import { requireConfig } from '../../common/utils/require-config';
 
 @Module({
   imports: [
@@ -18,7 +19,8 @@ import { MailModule } from '../../mail/mail.module';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_ACCESS_SECRET', 'dev-secret'),
+        // Maxfiy kalit majburiy — yo'q bo'lsa ilova ishga tushmaydi (fail-fast)
+        secret: requireConfig(config, 'JWT_ACCESS_SECRET'),
         signOptions: {
           // '15m' kabi qiymat to'g'ri ishlaydi — yangi @nestjs/jwt tip
           // ta'rifi qattiqlashgani uchun cast kerak

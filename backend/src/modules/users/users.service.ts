@@ -89,7 +89,7 @@ export class UsersService {
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { password: await bcrypt.hash(dto.newPassword, 10) },
+      data: { password: await bcrypt.hash(dto.newPassword, 12) },
     });
 
     // Xavfsizlik: barcha qurilmalardagi sessiyalar bekor qilinadi

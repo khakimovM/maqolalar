@@ -40,7 +40,7 @@ export class AdminService {
       data: {
         email: dto.email,
         username: dto.username,
-        password: await bcrypt.hash(dto.password, 10),
+        password: await bcrypt.hash(dto.password, 12),
         role: Role.ADMIN,
         isVerified: true,
         isActive: true,

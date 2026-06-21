@@ -1,6 +1,20 @@
 import React from "react";
 import katex from "katex";
 
+/**
+ * Link href'ini xavfsizlaydi — faqat http(s) va mailto ruxsat etiladi.
+ * `javascript:`, `data:` kabi protokollar XSS xavfi tug'diradi, shuning uchun
+ * ular "#" ga almashtiriladi.
+ */
+function safeHref(href: unknown): string {
+  if (typeof href !== "string") return "#";
+  const trimmed = href.trim();
+  // nisbiy / anchor havolalar xavfsiz
+  if (/^(\/|#|\.)/.test(trimmed)) return trimmed;
+  if (/^(https?:|mailto:)/i.test(trimmed)) return trimmed;
+  return "#";
+}
+
 /** LaTeX'ni KaTeX HTML satriga aylantiradi (xato bo'lsa ham yiqilmaydi). */
 function renderKatex(latex: string, displayMode: boolean): string {
   try {
@@ -54,9 +68,9 @@ function renderText(node: TNode, key: React.Key): React.ReactNode {
       case "link":
         el = (
           <a
-            href={String(mark.attrs?.href ?? "#")}
+            href={safeHref(mark.attrs?.href)}
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noopener noreferrer nofollow"
             className="text-primary underline underline-offset-2 hover:opacity-80"
           >
             {el}

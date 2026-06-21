@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../../database/prisma.service';
+import { requireConfig } from '../../../common/utils/require-config';
 
 export type JwtPayload = { sub: string; role: string };
 
@@ -19,7 +20,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('JWT_ACCESS_SECRET', 'dev-secret'),
+      // Maxfiy kalit majburiy (fail-fast) — bashorat qilinadigan fallback yo'q
+      secretOrKey: requireConfig(config, 'JWT_ACCESS_SECRET'),
     });
   }
 

@@ -50,7 +50,7 @@ export class AuthService {
     if (existingByEmail && !existingByEmail.isVerified) {
       await this.prisma.user.update({
         where: { id: existingByEmail.id },
-        data: { password: await bcrypt.hash(dto.password, 10) },
+        data: { password: await bcrypt.hash(dto.password, 12) },
       });
       await this.sendOtp(dto.email, 'verify');
       return {
@@ -74,7 +74,7 @@ export class AuthService {
       data: {
         email: dto.email,
         username: dto.username,
-        password: await bcrypt.hash(dto.password, 10),
+        password: await bcrypt.hash(dto.password, 12),
         isVerified: false,
       },
     });
@@ -219,7 +219,7 @@ export class AuthService {
 
     const user = await this.prisma.user.update({
       where: { email: dto.email },
-      data: { password: await bcrypt.hash(dto.newPassword, 10) },
+      data: { password: await bcrypt.hash(dto.newPassword, 12) },
     });
 
     await this.redis.del(`reset:${dto.email}`);

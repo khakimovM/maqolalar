@@ -13,7 +13,9 @@
     "prisma:studio": "prisma studio",
     "seed": "ts-node src/database/seed.ts"
   },
-  "prisma": { "seed": "ts-node src/database/seed.ts" },
+  "prisma": {
+    "seed": "ts-node src/database/seed.ts"
+  },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.2",
     "@nestjs/common": "^11.0.0",
@@ -26,9 +28,8 @@
     "@nestjs/platform-socket.io": "^11.0.0",
     "@nestjs/serve-static": "^5.0.0",
     "@nestjs/swagger": "^11.0.0",
-    "@nestjs/websockets": "^11.0.0",
-    "socket.io": "^4.8.1",
     "@nestjs/throttler": "^6.4.0",
+    "@nestjs/websockets": "^11.0.0",
     "@prisma/client": "^6.5.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.41.0",
@@ -36,6 +37,7 @@
     "class-validator": "^0.14.1",
     "dotenv": "^16.4.7",
     "handlebars": "^4.7.8",
+    "helmet": "^8.2.0",
     "ioredis": "^5.6.0",
     "nestjs-pino": "^4.1.0",
     "nodemailer": "^6.10.0",
@@ -45,7 +47,8 @@
     "passport-jwt": "^4.0.1",
     "pino-http": "^10.3.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",

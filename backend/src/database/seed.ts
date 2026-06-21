@@ -30,7 +30,7 @@ async function main() {
     data: {
       email,
       username,
-      password: await bcrypt.hash(password, 10),
+      password: await bcrypt.hash(password, 12),
       role: 'SUPERADMIN',
       isVerified: true,
       isActive: true,

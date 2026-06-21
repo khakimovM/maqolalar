@@ -8,6 +8,21 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { requireConfig } from '../../common/utils/require-config';
+
+/** WS uchun ruxsat etilgan originlar — FRONTEND_URLS dan (har handshake'da o'qiladi). */
+function wsCorsOrigin(
+  origin: string | undefined,
+  cb: (err: Error | null, allow?: boolean) => void,
+) {
+  const allowed = (process.env.FRONTEND_URLS ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  // origin yo'q (server-to-server / non-browser) yoki ro'yxatda bo'lsa — ruxsat
+  if (!origin || allowed.includes(origin)) cb(null, true);
+  else cb(new Error('WebSocket origin ruxsat etilmagan'), false);
+}
 
 /**
  * Real-time bildirishnomalar.
@@ -20,7 +35,7 @@ import { Server, Socket } from 'socket.io';
  * yaratilganda faqat o'sha xonaga emit qilinadi.
  */
 @WebSocketGateway({
-  cors: { origin: true, credentials: true },
+  cors: { origin: wsCorsOrigin, credentials: true },
 })
 export class NotificationsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
@@ -48,7 +63,7 @@ export class NotificationsGateway
       }
 
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: this.config.get<string>('JWT_ACCESS_SECRET', 'dev-secret'),
+        secret: requireConfig(this.config, 'JWT_ACCESS_SECRET'),
       });
 
       const userId = payload.sub;
