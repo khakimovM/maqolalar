@@ -5,15 +5,15 @@ import axios, {
 } from "axios";
 import { useAuth } from "@/lib/store/auth";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export const api = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true, // refresh token httpOnly cookie'sini yuborish uchun
 });
 
-// Har so'rovga access tokenni biriktiramiz
+// Har so'rovga access tokenni biriktiramiz (access token xotirada)
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = useAuth.getState().accessToken;
   if (token) {
@@ -27,7 +27,7 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// 401 bo'lsa — bir marta refresh qilib, so'rovni qayta yuboramiz.
+// 401 bo'lsa — bir marta refresh qilib (cookie orqali), so'rovni qayta yuboramiz.
 // Parallel 401 larni bitta refresh bilan navbatga olamiz.
 let isRefreshing = false;
 let queue: { resolve: (t: string) => void; reject: (e: unknown) => void }[] = [];
@@ -40,18 +40,17 @@ function flushQueue(error: unknown, token: string | null) {
 api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
-    const original = error.config as AxiosRequestConfig & {
-      _retry?: boolean;
-    };
+    const original = error.config as AxiosRequestConfig & { _retry?: boolean };
     const status = error.response?.status;
-    const { refreshToken, setAccessToken, logout } = useAuth.getState();
+    const { user, setAccessToken, logout } = useAuth.getState();
 
     // Refresh endpointining o'zi yiqilsa — qayta urinmaymiz
     const isRefreshCall = original?.url?.includes("/auth/refresh");
 
-    if (status === 401 && !original?._retry && refreshToken && !isRefreshCall) {
+    // Faqat tizimga kirgan (user mavjud) holatda refresh urinamiz —
+    // mehmonlar uchun keraksiz so'rov bo'lmasin.
+    if (status === 401 && !original?._retry && user && !isRefreshCall) {
       if (isRefreshing) {
-        // Boshqa refresh tugashini kutamiz
         return new Promise((resolve, reject) => {
           queue.push({
             resolve: (token) => {
@@ -67,9 +66,12 @@ api.interceptors.response.use(
       original._retry = true;
       isRefreshing = true;
       try {
-        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
-          refreshToken,
-        });
+        // Refresh token cookie'da — body yubormaymiz, withCredentials yetarli
+        const { data } = await axios.post(
+          `${BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true },
+        );
         const newToken: string = data.data.accessToken;
         setAccessToken(newToken);
         flushQueue(null, newToken);

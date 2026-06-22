@@ -4,17 +4,16 @@ import type { User } from "@/lib/types";
 
 interface AuthState {
   user: User | null;
+  /** Access token — FAQAT xotirada saqlanadi (localStorage'da emas, XSS himoyasi). */
   accessToken: string | null;
-  refreshToken: string | null;
+  /** Sessiya tiklash (bootstrap) tugaganini bildiradi. */
+  hydrated: boolean;
   /** Login/verify/OAuth muvaffaqiyatidan keyin chaqiriladi. */
-  setAuth: (data: {
-    user: User;
-    accessToken: string;
-    refreshToken: string;
-  }) => void;
+  setAuth: (data: { user: User; accessToken: string }) => void;
   /** Faqat access tokenni yangilash (refresh oqimi). */
   setAccessToken: (accessToken: string) => void;
   setUser: (user: User) => void;
+  setHydrated: (v: boolean) => void;
   logout: () => void;
 }
 
@@ -23,13 +22,17 @@ export const useAuth = create<AuthState>()(
     (set) => ({
       user: null,
       accessToken: null,
-      refreshToken: null,
-      setAuth: ({ user, accessToken, refreshToken }) =>
-        set({ user, accessToken, refreshToken }),
+      hydrated: false,
+      setAuth: ({ user, accessToken }) => set({ user, accessToken }),
       setAccessToken: (accessToken) => set({ accessToken }),
       setUser: (user) => set({ user }),
-      logout: () => set({ user: null, accessToken: null, refreshToken: null }),
+      setHydrated: (hydrated) => set({ hydrated }),
+      logout: () => set({ user: null, accessToken: null }),
     }),
-    { name: "maqolalar-auth" },
+    {
+      name: "maqolalar-auth",
+      // FAQAT user saqlanadi — access token xotirada, refresh token httpOnly cookie'da
+      partialize: (s) => ({ user: s.user }),
+    },
   ),
 );

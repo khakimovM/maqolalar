@@ -1,10 +1,13 @@
+import axios from "axios";
 import { api } from "./api";
 import type { User } from "./types";
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export interface AuthResult {
   user: User;
   accessToken: string;
-  refreshToken: string;
+  // refresh token endi httpOnly cookie'da — javob body'sida bo'lmaydi
 }
 
 /** 1-qadam: ro'yxatdan o'tish — OTP emailga (dev'da konsolga) yuboriladi. */
@@ -17,7 +20,7 @@ export async function register(dto: {
   return res.data.data;
 }
 
-/** 2-qadam: emailni OTP bilan tasdiqlash — tokenlar qaytadi. */
+/** 2-qadam: emailni OTP bilan tasdiqlash — access token qaytadi (refresh cookie'da). */
 export async function verifyEmail(
   email: string,
   code: string,
@@ -31,7 +34,7 @@ export async function resendOtp(email: string): Promise<void> {
   await api.post("/auth/resend-otp", { email });
 }
 
-/** Tizimga kirish — tokenlar qaytadi. */
+/** Tizimga kirish — access token qaytadi (refresh cookie'da). */
 export async function login(
   email: string,
   password: string,
@@ -40,10 +43,32 @@ export async function login(
   return res.data.data;
 }
 
-/** Joriy foydalanuvchi (OAuth callback'da token o'rnatilgach chaqiriladi). */
+/** Joriy foydalanuvchi. */
 export async function fetchMe(): Promise<User> {
   const res = await api.get("/users/me");
   return res.data.data;
+}
+
+/**
+ * Sessiyani tiklash — refresh cookie orqali yangi access token oladi.
+ * Bootstrap va OAuth callback'da ishlatiladi. Bare axios (interceptorsiz).
+ */
+export async function refreshSession(): Promise<string> {
+  const res = await axios.post(
+    `${BASE_URL}/auth/refresh`,
+    {},
+    { withCredentials: true },
+  );
+  return res.data.data.accessToken as string;
+}
+
+/** Logout — server refresh tokenni bekor qiladi va cookie'ni tozalaydi. */
+export async function logoutApi(): Promise<void> {
+  try {
+    await api.post("/auth/logout");
+  } catch {
+    // logout har doim muvaffaqiyatli hisoblanadi (cookie baribir tozalanadi)
+  }
 }
 
 /** Parolni tiklash — 1-qadam: emailga kod yuborish. */

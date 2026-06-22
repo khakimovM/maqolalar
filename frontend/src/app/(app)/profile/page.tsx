@@ -9,7 +9,7 @@ import { AvatarUploader } from "@/components/avatar-uploader";
 import { ProfileSettings } from "@/components/profile-settings";
 import { SavedList } from "@/components/saved-list";
 import { ReadingList } from "@/components/reading-list";
-import { fetchMe } from "@/lib/auth-api";
+import { fetchMe, logoutApi } from "@/lib/auth-api";
 import { useAuth } from "@/lib/store/auth";
 
 type Tab = "saved" | "reading" | "settings";
@@ -42,33 +42,30 @@ function RoleBadge({ role }: { role: string }) {
 export default function ProfilePage() {
   const router = useRouter();
   const user = useAuth((s) => s.user);
-  const token = useAuth((s) => s.accessToken);
+  const hydrated = useAuth((s) => s.hydrated);
   const setUser = useAuth((s) => s.setUser);
   const logout = useAuth((s) => s.logout);
 
-  const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<Tab>("saved");
 
-  useEffect(() => setMounted(true), []);
-
-  // persist hydratsiyadan keyin token bo'lmasa — loginga
+  // Sessiya tiklash (bootstrap) tugagach, user bo'lmasa — loginga
   useEffect(() => {
-    if (mounted && !token) {
+    if (hydrated && !user) {
       router.replace("/login?next=/profile");
     }
-  }, [mounted, token, router]);
+  }, [hydrated, user, router]);
 
   // Profilni yangilab olamiz (avatar/role o'zgargan bo'lsa)
   const { data: me } = useQuery({
     queryKey: ["me"],
     queryFn: fetchMe,
-    enabled: mounted && !!token,
+    enabled: !!user,
   });
   useEffect(() => {
     if (me) setUser(me);
   }, [me, setUser]);
 
-  if (!mounted || !token || !user) {
+  if (!user) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <span className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -111,7 +108,8 @@ export default function ProfilePage() {
 
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
+            await logoutApi(); // server: refresh tokenni bekor qiladi + cookie tozalanadi
             logout();
             router.replace("/");
           }}

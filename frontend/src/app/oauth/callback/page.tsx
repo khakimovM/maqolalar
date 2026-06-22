@@ -1,16 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { BookOpen } from "lucide-react";
-import { fetchMe } from "@/lib/auth-api";
+import { refreshSession, fetchMe } from "@/lib/auth-api";
 import { apiError } from "@/lib/api";
 import { useAuth } from "@/lib/store/auth";
 
-function CallbackInner() {
+export default function OAuthCallbackPage() {
   const router = useRouter();
-  const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const ran = useRef(false);
 
@@ -18,27 +17,21 @@ function CallbackInner() {
     if (ran.current) return;
     ran.current = true;
 
-    const accessToken = params.get("accessToken");
-    const refreshToken = params.get("refreshToken");
-
-    if (!accessToken || !refreshToken) {
-      setError("Token topilmadi — qaytadan urinib ko'ring.");
-      return;
-    }
-
-    // Tokenlarni vaqtincha o'rnatamiz, so'ng /users/me dan foydalanuvchini olamiz
-    useAuth.setState({ accessToken, refreshToken });
-
-    fetchMe()
-      .then((user) => {
-        useAuth.getState().setAuth({ user, accessToken, refreshToken });
+    // OAuth callback'da refresh token allaqachon httpOnly cookie'da o'rnatilgan.
+    // Uni access token'ga almashtirib, foydalanuvchini olamiz.
+    (async () => {
+      try {
+        const accessToken = await refreshSession();
+        useAuth.getState().setAccessToken(accessToken);
+        const user = await fetchMe();
+        useAuth.getState().setAuth({ user, accessToken });
         router.replace("/articles");
-      })
-      .catch((err) => {
+      } catch (err) {
         useAuth.getState().logout();
         setError(apiError(err));
-      });
-  }, [params, router]);
+      }
+    })();
+  }, [router]);
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-4 text-center text-foreground">
@@ -64,19 +57,5 @@ function CallbackInner() {
         </>
       )}
     </main>
-  );
-}
-
-export default function OAuthCallbackPage() {
-  return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-dvh items-center justify-center bg-background">
-          <span className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        </main>
-      }
-    >
-      <CallbackInner />
-    </Suspense>
   );
 }

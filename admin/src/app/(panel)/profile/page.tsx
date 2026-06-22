@@ -24,6 +24,7 @@ import {
   confirmEmailChange,
 } from "@/lib/profile";
 import { apiError } from "@/lib/api";
+import { logoutApi } from "@/lib/auth";
 import { useAuth } from "@/lib/store/auth";
 
 const RESEND_SECONDS = 60;
@@ -359,7 +360,8 @@ export default function AdminProfilePage() {
         </a>
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
+            await logoutApi();
             logout();
             router.replace("/login");
           }}

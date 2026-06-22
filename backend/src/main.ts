@@ -5,6 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
@@ -35,13 +36,16 @@ async function bootstrap() {
     }),
   );
 
+  // Cookie'larni o'qish (refresh token httpOnly cookie'da)
+  app.use(cookieParser());
+
   // Body hajmi limiti — ulkan payload bilan DoS oldini oladi.
   // Maqola JSON'i uchun yetarli (rasmlar alohida yuklanadi, URL saqlanadi).
   const bodyLimit = config.get<string>('BODY_LIMIT', '2mb');
   app.use(json({ limit: bodyLimit }));
   app.use(urlencoded({ extended: true, limit: bodyLimit }));
 
-  // CORS — faqat ruxsat etilgan originlar
+  // CORS — faqat ruxsat etilgan originlar (cookie uchun credentials: true)
   const origins = (config.get<string>('FRONTEND_URLS') ?? '')
     .split(',')
     .map((o) => o.trim())

@@ -1,11 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider } from "@/components/toast";
 import { NotificationsListener } from "@/components/notifications-listener";
 import { DialogProvider } from "@/components/confirm-dialog";
+import { useAuth } from "@/lib/store/auth";
+import { refreshSession, fetchMe } from "@/lib/auth-api";
+
+/**
+ * Sahifa yuklanganda sessiyani tiklaydi: access token xotirada bo'lgani uchun
+ * yangilanishda yo'qoladi — refresh cookie orqali yangisini olamiz.
+ * Faqat avval kirgan (user persist qilingan) foydalanuvchi uchun ishlaydi.
+ */
+function AuthBootstrap() {
+  const setAccessToken = useAuth((s) => s.setAccessToken);
+  const setUser = useAuth((s) => s.setUser);
+  const setHydrated = useAuth((s) => s.setHydrated);
+  const logout = useAuth((s) => s.logout);
+  const ran = useRef(false);
+
+  useEffect(() => {
+    if (ran.current) return;
+    ran.current = true;
+
+    if (!useAuth.getState().user) {
+      setHydrated(true);
+      return;
+    }
+
+    (async () => {
+      try {
+        const accessToken = await refreshSession();
+        setAccessToken(accessToken);
+        const me = await fetchMe();
+        setUser(me);
+      } catch {
+        logout(); // cookie yaroqsiz — sessiyani tozalaymiz
+      } finally {
+        setHydrated(true);
+      }
+    })();
+  }, [setAccessToken, setUser, setHydrated, logout]);
+
+  return null;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -31,6 +71,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <DialogProvider>
+            <AuthBootstrap />
             <NotificationsListener />
             {children}
           </DialogProvider>

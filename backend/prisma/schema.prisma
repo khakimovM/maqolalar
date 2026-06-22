@@ -101,15 +101,18 @@ model OAuthAccount {
 // ============================================================
 
 model RefreshToken {
-  id        String   @id @default(cuid())
-  tokenHash String   @unique // SHA-256(token)
+  id        String    @id @default(cuid())
+  tokenHash String    @unique // SHA-256(token)
   userId    String
+  family    String // rotation oilasi — bitta login sessiyasidagi tokenlar zanjiri
+  usedAt    DateTime? // rotation'da belgilanadi; ishlatilgan token qayta kelsa — o'g'irlik
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([family])
   @@map("refresh_tokens")
 }
 

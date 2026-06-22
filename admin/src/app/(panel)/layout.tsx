@@ -17,6 +17,7 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 import { useAuth } from "@/lib/store/auth";
+import { logoutApi } from "@/lib/auth";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
 
@@ -37,7 +38,7 @@ export default function PanelLayout({
   const router = useRouter();
   const pathname = usePathname();
   const user = useAuth((s) => s.user);
-  const token = useAuth((s) => s.accessToken);
+  const hydrated = useAuth((s) => s.hydrated);
   const logout = useAuth((s) => s.logout);
   const [mounted, setMounted] = useState(false);
 
@@ -46,14 +47,16 @@ export default function PanelLayout({
   const isAdmin = user?.role === "ADMIN" || user?.role === "SUPERADMIN";
   const isSuper = user?.role === "SUPERADMIN";
 
+  // Sessiya tiklash (bootstrap) tugagach gate qilamiz — access token xotirada,
+  // yangilanishda cookie orqali tiklanadi.
   useEffect(() => {
-    if (!mounted) return;
-    if (!token || (user && !isAdmin)) {
+    if (!mounted || !hydrated) return;
+    if (!user || !isAdmin) {
       router.replace("/login");
     }
-  }, [mounted, token, user, isAdmin, router]);
+  }, [mounted, hydrated, user, isAdmin, router]);
 
-  if (!mounted || !token || !user || !isAdmin) {
+  if (!mounted || !hydrated || !user || !isAdmin) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
         <span className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -118,7 +121,8 @@ export default function PanelLayout({
           </a>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
+              await logoutApi();
               logout();
               router.replace("/login");
             }}

@@ -23,7 +23,6 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 type OtpPurpose = 'verify' | 'reset' | 'change-email';
 
@@ -147,8 +146,17 @@ export class AuthService {
     };
   }
 
-  async refresh(dto: RefreshTokenDto) {
-    const tokenHash = this.hashToken(dto.refreshToken);
+  /**
+   * Refresh token rotation + reuse detection.
+   * - Token topilmasa → yaroqsiz.
+   * - Token allaqachon ishlatilgan (usedAt) → o'g'irlik gumoni: butun oila bekor.
+   * - Aks holda → eski tokenni "ishlatilgan" deb belgilaymiz va yangi juftlik beramiz.
+   */
+  async refresh(refreshToken?: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token topilmadi');
+    }
+    const tokenHash = this.hashToken(refreshToken);
 
     const stored = await this.prisma.refreshToken.findUnique({
       where: { tokenHash },
@@ -156,26 +164,46 @@ export class AuthService {
     });
 
     if (!stored) {
-      throw new UnauthorizedException("Refresh token yaroqsiz");
+      throw new UnauthorizedException('Refresh token yaroqsiz');
     }
+
+    // REUSE DETECTION — ishlatilgan token qayta keldi: o'g'irlangan bo'lishi
+    // mumkin. Xavfsizlik uchun shu oiladagi barcha tokenlarni bekor qilamiz.
+    if (stored.usedAt) {
+      await this.prisma.refreshToken.deleteMany({
+        where: { family: stored.family },
+      });
+      throw new UnauthorizedException(
+        'Sessiya buzilgan — xavfsizlik uchun qaytadan kiring',
+      );
+    }
+
     if (stored.expiresAt < new Date()) {
       await this.prisma.refreshToken.delete({ where: { id: stored.id } });
       throw new UnauthorizedException('Refresh token muddati tugagan');
     }
     if (!stored.user.isActive) {
+      await this.prisma.refreshToken.deleteMany({
+        where: { family: stored.family },
+      });
       throw new UnauthorizedException('Hisobingiz bloklangan');
     }
 
-    const accessToken = await this.signAccessToken(stored.user);
-    return { data: { accessToken }, message: 'Token yangilandi' };
+    // Rotation: eski tokenni ishlatilgan deb belgilab, yangi juftlik beramiz
+    await this.prisma.refreshToken.update({
+      where: { id: stored.id },
+      data: { usedAt: new Date() },
+    });
+    const tokens = await this.issueTokens(stored.user, stored.family);
+    return { data: tokens, message: 'Token yangilandi' };
   }
 
-  async logout(userId: string, dto: RefreshTokenDto) {
-    const tokenHash = this.hashToken(dto.refreshToken);
-    // deleteMany — token topilmasa ham xato bermaydi (idempotent)
-    await this.prisma.refreshToken.deleteMany({
-      where: { tokenHash, userId },
-    });
+  /** Logout — refresh token (cookie'dan) bo'yicha bekor qilinadi. Idempotent. */
+  async logout(refreshToken?: string) {
+    if (refreshToken) {
+      const tokenHash = this.hashToken(refreshToken);
+      await this.prisma.refreshToken.deleteMany({ where: { tokenHash } });
+    }
     return { data: null, message: 'Chiqildi' };
   }
 
@@ -478,10 +506,11 @@ export class AuthService {
     return this.jwt.signAsync({ sub: user.id, role: user.role });
   }
 
-  private async issueTokens(user: User) {
+  private async issueTokens(user: User, family?: string) {
     const accessToken = await this.signAccessToken(user);
 
-    // Refresh token — tasodifiy satr (JWT emas), DB da faqat hash saqlanadi
+    // Refresh token — tasodifiy satr (JWT emas), DB da faqat hash saqlanadi.
+    // family — rotation zanjiri (login sessiyasi); berilmasa yangi oila ochiladi.
     const refreshToken = randomBytes(40).toString('hex');
     const days = this.config.get<number>('JWT_REFRESH_EXPIRES_DAYS', 30);
 
@@ -489,6 +518,7 @@ export class AuthService {
       data: {
         tokenHash: this.hashToken(refreshToken),
         userId: user.id,
+        family: family ?? randomBytes(16).toString('hex'),
         expiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
       },
     });
