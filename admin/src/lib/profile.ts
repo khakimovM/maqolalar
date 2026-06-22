@@ -26,9 +26,12 @@ export async function uploadAvatar(file: File): Promise<string> {
   return res.data.data.url as string;
 }
 
-/** Email o'zgartirish — 1-qadam: yangi emailga tasdiqlash kodi yuborish. */
-export async function requestEmailChange(newEmail: string): Promise<void> {
-  await api.post("/auth/change-email/request", { newEmail });
+/** Email o'zgartirish — 1-qadam: joriy parol + yangi emailga tasdiqlash kodi. */
+export async function requestEmailChange(
+  newEmail: string,
+  currentPassword: string,
+): Promise<void> {
+  await api.post("/auth/change-email/request", { newEmail, currentPassword });
 }
 
 /** Email o'zgartirish — 2-qadam: kodni tasdiqlab emailni yangilash. */

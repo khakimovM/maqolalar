@@ -31,4 +31,13 @@ export class MailService {
   sendOtpChangeEmail(email: string, code: string) {
     return this.queue.add('otp-change-email', { email, code }, JOB_OPTS);
   }
+
+  /** Email o'zgartirilgani haqida ESKI emailga ogohlantirish xati */
+  sendEmailChangedNotice(oldEmail: string, newEmail: string) {
+    return this.queue.add(
+      'email-changed',
+      { email: oldEmail, newEmail },
+      JOB_OPTS,
+    );
+  }
 }

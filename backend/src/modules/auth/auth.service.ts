@@ -262,10 +262,26 @@ export class AuthService {
   // EMAIL O'ZGARTIRISH (yangi emailga OTP -> tasdiqlash)
   // ==========================================================
 
-  /** 1-qadam: yangi emailga tasdiqlash kodi yuborish. */
-  async requestEmailChange(userId: string, newEmail: string) {
+  /** 1-qadam: joriy parolni tasdiqlab, yangi emailga kod yuborish. */
+  async requestEmailChange(
+    userId: string,
+    newEmail: string,
+    currentPassword?: string,
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Hisob topilmadi');
+
+    // STEP-UP: sezgir amal — joriy parolni qayta so'raymiz (o'g'irlangan token
+    // bilan hisobni egallashning oldini oladi). OAuth hisoblarda parol yo'q —
+    // ular uchun bu bosqich o'tkazib yuboriladi.
+    if (user.password) {
+      if (
+        !currentPassword ||
+        !(await bcrypt.compare(currentPassword, user.password))
+      ) {
+        throw new UnauthorizedException("Joriy parol noto'g'ri");
+      }
+    }
 
     if (user.email === newEmail) {
       throw new BadRequestException('Bu allaqachon sizning emailingiz');
@@ -305,10 +321,15 @@ export class AuthService {
 
     await this.checkOtp(newEmail, 'change-email', code);
 
+    const oldEmail = user.email;
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { email: newEmail, isVerified: true },
     });
+
+    // Xavfsizlik: eski emailga ogohlantirish xati — agar bu egasi bo'lmasa
+    // (token o'g'irlangan bo'lsa) darrov xabardor bo'ladi.
+    await this.mail.sendEmailChangedNotice(oldEmail, newEmail);
 
     return { data: this.sanitize(updated), message: 'Email yangilandi' };
   }
@@ -410,10 +431,6 @@ export class AuthService {
     if (m > 0) return `${m} daqiqa`;
     return `${seconds} soniya`;
   }
-
-  // ==========================================================
-  // TOKEN HELPERS
-  // ==========================================================
 
   // ==========================================================
   // OAuth (Google / GitHub) — faqat USER rol uchun

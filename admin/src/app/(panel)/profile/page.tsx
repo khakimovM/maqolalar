@@ -53,6 +53,7 @@ export default function AdminProfilePage() {
   // Email o'zgartirish
   const [emailMode, setEmailMode] = useState<"view" | "input" | "otp">("view");
   const [newEmail, setNewEmail] = useState("");
+  const [emailCurrentPass, setEmailCurrentPass] = useState("");
   const [emailCode, setEmailCode] = useState("");
   const [emailCooldown, setEmailCooldown] = useState(0);
   const [emailSaved, setEmailSaved] = useState(false);
@@ -76,7 +77,7 @@ export default function AdminProfilePage() {
   });
 
   const emailReqMut = useMutation({
-    mutationFn: () => requestEmailChange(newEmail.trim()),
+    mutationFn: () => requestEmailChange(newEmail.trim(), emailCurrentPass),
     onSuccess: () => {
       setEmailMode("otp");
       setEmailCode("");
@@ -89,6 +90,7 @@ export default function AdminProfilePage() {
       setUser(u);
       setEmailMode("view");
       setNewEmail("");
+      setEmailCurrentPass("");
       setEmailCode("");
       setEmailCooldown(0);
       setEmailSaved(true);
@@ -98,6 +100,7 @@ export default function AdminProfilePage() {
   function cancelEmail() {
     setEmailMode("view");
     setNewEmail("");
+    setEmailCurrentPass("");
     setEmailCode("");
     setEmailCooldown(0);
     emailReqMut.reset();
@@ -212,11 +215,21 @@ export default function AdminProfilePage() {
               type="email"
               label="Yangi email"
               placeholder="yangi@example.com"
-              autoComplete="email"
+              autoComplete="off"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               required
               hint="Tasdiqlash kodi shu manzilga yuboriladi"
+            />
+            <Field
+              id="emailCurrentPass"
+              type="password"
+              label="Joriy parol"
+              autoComplete="off"
+              value={emailCurrentPass}
+              onChange={(e) => setEmailCurrentPass(e.target.value)}
+              required
+              hint="Xavfsizlik uchun joriy parolingizni tasdiqlang"
             />
             <FormError
               message={emailReqMut.isError ? apiError(emailReqMut.error) : null}
@@ -225,7 +238,11 @@ export default function AdminProfilePage() {
               <div className="w-44">
                 <SubmitButton
                   loading={emailReqMut.isPending}
-                  disabled={!newEmail.trim() || newEmail.trim() === user.email}
+                  disabled={
+                    !newEmail.trim() ||
+                    newEmail.trim() === user.email ||
+                    !emailCurrentPass
+                  }
                 >
                   Kod yuborish
                 </SubmitButton>

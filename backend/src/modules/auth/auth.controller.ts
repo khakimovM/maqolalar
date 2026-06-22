@@ -154,14 +154,18 @@ export class AuthController {
     return this.authService.resetPassword(dto);
   }
 
-  /** Email o'zgartirish — 1-qadam: yangi emailga kod yuborish (auth talab). */
+  /** Email o'zgartirish — 1-qadam: joriy parol + yangi emailga kod (auth talab). */
   @HttpCode(HttpStatus.OK)
   @Post('change-email/request')
   requestEmailChange(
     @CurrentUser('id') userId: string,
     @Body() dto: ChangeEmailRequestDto,
   ) {
-    return this.authService.requestEmailChange(userId, dto.newEmail);
+    return this.authService.requestEmailChange(
+      userId,
+      dto.newEmail,
+      dto.currentPassword,
+    );
   }
 
   /** Email o'zgartirish — 2-qadam: kodni tasdiqlab emailni yangilash. */

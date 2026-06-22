@@ -9,15 +9,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaService } from '../database/prisma.service';
 
-type MailJobData = { email: string; code: string };
+type MailJobData = { email: string; code?: string; newEmail?: string };
 
 const SUBJECTS: Record<string, string> = {
   'otp-verification': 'Maqolalar — Email tasdiqlash kodi',
   'otp-reset': 'Maqolalar — Parolni tiklash kodi',
   'otp-change-email': 'Maqolalar — Yangi emailni tasdiqlash kodi',
+  'email-changed': 'Maqolalar — Hisobingiz emaili o\'zgartirildi',
 };
 
-// Job nomini EmailType enum'ga moslash
+// Job nomini EmailType enum'ga moslash (faqat OTP turlari statistikaga yoziladi)
 const TYPE_MAP: Record<string, EmailType> = {
   'otp-verification': EmailType.VERIFICATION,
   'otp-reset': EmailType.RESET,
@@ -30,7 +31,7 @@ const TYPE_MAP: Record<string, EmailType> = {
  * DEV MODE: .env da MAIL_USER bo'sh bo'lsa, email yuborilmaydi —
  * OTP kod konsolga chiqadi. Postman bilan test qilish uchun qulay.
  *
- * Har bir urinish EmailLog jadvaliga yoziladi (statistika uchun).
+ * OTP urinishlari EmailLog jadvaliga yoziladi (statistika uchun).
  */
 @Processor('mail')
 export class MailProcessor extends WorkerHost {
@@ -54,13 +55,19 @@ export class MailProcessor extends WorkerHost {
   }
 
   async process(job: Job<MailJobData>): Promise<void> {
-    const { email, code } = job.data;
-    const type = TYPE_MAP[job.name] ?? EmailType.VERIFICATION;
+    const { email, code, newEmail } = job.data;
+    const isNotice = job.name === 'email-changed';
+    // OTP turi (statistikaga yoziladi); ogohlantirish xati uchun undefined
+    const type = TYPE_MAP[job.name];
 
-    // DEV MODE — SMTP sozlanmagan: kod konsolga, baribir log yoziladi
+    // DEV MODE — SMTP sozlanmagan: konsolga chiqaramiz
     if (!this.transporter) {
-      this.logger.log(`📧 [DEV MODE] ${job.name} → ${email} | KOD: ${code}`);
-      await this.logEmail(type, email, EmailStatus.SENT);
+      this.logger.log(
+        isNotice
+          ? `📧 [DEV MODE] ${job.name} → ${email} | yangi email: ${newEmail}`
+          : `📧 [DEV MODE] ${job.name} → ${email} | KOD: ${code}`,
+      );
+      if (type) await this.logEmail(type, email, EmailStatus.SENT);
       return;
     }
 
@@ -69,16 +76,28 @@ export class MailProcessor extends WorkerHost {
         from: this.config.get<string>('MAIL_FROM'),
         to: email,
         subject: SUBJECTS[job.name] ?? 'Maqolalar',
-        html: this.render(`${job.name}.hbs`, { code, email }),
+        html: isNotice
+          ? this.noticeHtml(newEmail ?? '')
+          : this.render(`${job.name}.hbs`, { code: code ?? '', email }),
       });
       this.logger.log(`📧 ${job.name} yuborildi → ${email}`);
-      await this.logEmail(type, email, EmailStatus.SENT);
+      if (type) await this.logEmail(type, email, EmailStatus.SENT);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`📧 ${job.name} XATO → ${email}: ${msg}`);
-      await this.logEmail(type, email, EmailStatus.FAILED, msg);
+      if (type) await this.logEmail(type, email, EmailStatus.FAILED, msg);
       throw err; // BullMQ qayta urinishi uchun
     }
+  }
+
+  /** Email o'zgartirilgani haqida eski emailga yuboriladigan ogohlantirish. */
+  private noticeHtml(newEmail: string): string {
+    return (
+      `<p>Assalomu alaykum,</p>` +
+      `<p>Maqolalar hisobingiz email manzili <b>${newEmail}</b> ga o'zgartirildi.</p>` +
+      `<p>Agar bu o'zgarishni siz qilmagan bo'lsangiz, darhol qo'llab-quvvatlash ` +
+      `xizmatiga murojaat qiling — hisobingiz xavf ostida bo'lishi mumkin.</p>`
+    );
   }
 
   /** EmailLog yozuvini yaratadi — statistikani buzmaslik uchun o'zi xato bersa yutiladi. */
