@@ -15,6 +15,20 @@ function safeHref(href: unknown): string {
   return "#";
 }
 
+/**
+ * Rasm src'ini xavfsizlaydi — faqat http(s), nisbiy (/, .) va protokol-relativ
+ * (//) manbalar ruxsat etiladi. `data:` (SVG data-URI XSS), `javascript:`,
+ * `blob:` kabi protokollar rad etiladi (null qaytadi → rasm umuman render qilinmaydi).
+ */
+function safeImageSrc(src: unknown): string | null {
+  if (typeof src !== "string") return null;
+  const trimmed = src.trim();
+  if (trimmed === "") return null;
+  if (/^(\/|\.)/.test(trimmed)) return trimmed; // nisbiy yoki protokol-relativ (//)
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return null;
+}
+
 /** LaTeX'ni KaTeX HTML satriga aylantiradi (xato bo'lsa ham yiqilmaydi). */
 function renderKatex(latex: string, displayMode: boolean): string {
   try {
@@ -148,6 +162,8 @@ function renderNode(node: TNode, key: React.Key): React.ReactNode {
         </pre>
       );
     case "image": {
+      const imgSrc = safeImageSrc(node.attrs?.src);
+      if (!imgSrc) return null; // xavfsiz bo'lmagan manba — rasm ko'rsatilmaydi
       const align = String(node.attrs?.align ?? "center");
       const width = node.attrs?.width ? String(node.attrs.width) : undefined;
       const height = node.attrs?.height ? String(node.attrs.height) : undefined;
@@ -161,7 +177,7 @@ function renderNode(node: TNode, key: React.Key): React.ReactNode {
         <span key={key} className="my-6 flex" style={{ justifyContent: justify }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={String(node.attrs?.src ?? "")}
+            src={imgSrc}
             alt={String(node.attrs?.alt ?? "")}
             className="rounded-lg border border-border"
             style={{
