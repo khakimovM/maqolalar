@@ -3,9 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ArticleStatus, ArticleType, Prisma, Role, User } from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
+import { RedisService } from '../../redis/redis.service';
 import { slugify } from '../../common/utils/slugify';
 import { extractTiptapText } from '../../common/utils/tiptap-text';
 import { CreateArticleDto } from './dto/create-article.dto';
@@ -33,7 +35,11 @@ const LIST_SELECT = {
 
 @Injectable()
 export class ArticlesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+    private readonly config: ConfigService,
+  ) {}
 
   // ==========================================================
   // PUBLIC: RO'YXAT VA BITTA MAQOLA
@@ -102,12 +108,12 @@ export class ArticlesService {
       );
     }
 
-    // View hisobi: counter + statistika yozuvi
-    await this.recordView(article.id, user, ip);
+    // View hisobi: takroriy ko'rishlar vaqt oynasida bir marta sanaladi
+    const counted = await this.recordView(article.id, user, ip);
 
     const { searchText, ...result } = article;
     return {
-      data: { ...result, viewCount: result.viewCount + 1 },
+      data: { ...result, viewCount: result.viewCount + (counted ? 1 : 0) },
       message: 'OK',
     };
   }
@@ -366,8 +372,32 @@ export class ArticlesService {
     if (!category) throw new NotFoundException('Kategoriya topilmadi');
   }
 
-  /** viewCount++ va ArticleView yozuvi (mehmon uchun IP hash). */
-  private async recordView(articleId: string, user: SafeUser, ip?: string) {
+  /**
+   * View hisobi — bir foydalanuvchi/IP uchun belgilangan vaqt oynasida
+   * (VIEW_DEDUP_TTL, standart 1 soat) faqat BIR MARTA sanaladi. Sahifani
+   * qayta yuklash ko'rishlar sonini sun'iy oshirmaydi.
+   * Sanalganda true qaytaradi. Redis nosoz bo'lsa — ko'rish baribir sanaladi.
+   */
+  private async recordView(
+    articleId: string,
+    user: SafeUser,
+    ip?: string,
+  ): Promise<boolean> {
+    const identity = user?.id ?? (ip ? this.ipHash(ip) : null);
+
+    if (identity) {
+      try {
+        const key = `view:${articleId}:${identity}`;
+        if (await this.redis.get(key)) {
+          return false; // yaqinda sanalган — qayta sanamaymiz
+        }
+        const ttl = this.config.get<number>('VIEW_DEDUP_TTL', 3600);
+        await this.redis.set(key, '1', ttl);
+      } catch {
+        // Redis muammosi — dedup'ni o'tkazib yuboramiz, ko'rish sanalaveradi
+      }
+    }
+
     await this.prisma.$transaction([
       this.prisma.article.update({
         where: { id: articleId },
@@ -377,12 +407,14 @@ export class ArticlesService {
         data: {
           articleId,
           userId: user?.id ?? null,
-          ipHash:
-            !user && ip
-              ? createHash('sha256').update(ip).digest('hex')
-              : null,
+          ipHash: !user && ip ? this.ipHash(ip) : null,
         },
       }),
     ]);
+    return true;
+  }
+
+  private ipHash(ip: string): string {
+    return createHash('sha256').update(ip).digest('hex');
   }
 }

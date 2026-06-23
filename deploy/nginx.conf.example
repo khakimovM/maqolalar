@@ -1,0 +1,105 @@
+# ============================================================
+# Maqolalar — production nginx namunasi
+# ============================================================
+# Foydalanish:
+#   1) "maqolalar.uz" ni o'z domeningizga almashtiring (3 joyda).
+#   2) Bu faylni serverga ko'chiring:
+#        sudo cp nginx.conf.example /etc/nginx/sites-available/maqolalar
+#        sudo ln -s /etc/nginx/sites-available/maqolalar /etc/nginx/sites-enabled/
+#   3) SSL sertifikat oling (HTTPS bloklari avtomatik to'ldiriladi):
+#        sudo certbot --nginx -d maqolalar.uz -d admin.maqolalar.uz -d api.maqolalar.uz
+#      Certbot har ~60 kunda o'zini-o'zi yangilaydi (systemd timer).
+#   4) sudo nginx -t && sudo systemctl reload nginx
+#
+# Node ilovalar lokal portlarda ishlaydi (PM2/Docker orqali):
+#   frontend → 127.0.0.1:3001   admin → 127.0.0.1:3002   backend → 127.0.0.1:3000
+# ============================================================
+
+# WebSocket (socket.io) upgrade uchun — Connection header'ini boshqaradi
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+# ── HTTP → HTTPS yo'naltirish (barcha domenlar) ──────────────
+server {
+    listen 80;
+    listen [::]:80;
+    server_name maqolalar.uz admin.maqolalar.uz api.maqolalar.uz;
+    # Certbot ACME tekshiruvi shu yerdan o'tadi, qolgani HTTPS'ga
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+# ── FRONTEND — maqolalar.uz (Next.js SSR, :3001) ─────────────
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name maqolalar.uz;
+
+    # ssl_certificate ... ; ssl_certificate_key ... ;  # certbot to'ldiradi
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+}
+
+# ── ADMIN — admin.maqolalar.uz (Next.js, :3002) ──────────────
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name admin.maqolalar.uz;
+
+    # ssl_certificate ... ; ssl_certificate_key ... ;  # certbot to'ldiradi
+
+    location / {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+}
+
+# ── BACKEND API — api.maqolalar.uz (NestJS, :3000) ───────────
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name api.maqolalar.uz;
+
+    # ssl_certificate ... ; ssl_certificate_key ... ;  # certbot to'ldiradi
+
+    # MUHIM: rasm yuklash 5MB gacha — nginx standart 1MB'ni oshiramiz
+    client_max_body_size 6m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # TRUST_PROXY=1 shu header bilan haqiqiy IP/HTTPS'ni aniqlaydi
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # WebSocket (real-time bildirishnomalar — socket.io)
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 60s;
+    }
+
+    # Statik yuklangan fayllar (ixtiyoriy: nginx to'g'ridan-to'g'ri bersa tezroq)
+    # location /uploads/ {
+    #     alias /path/to/backend/uploads/;
+    #     expires 7d;
+    #     access_log off;
+    # }
+}

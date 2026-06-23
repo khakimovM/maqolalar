@@ -19,15 +19,18 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Builder'dan tayyor narsalarni olamiz (qayta build/generate shart emas).
-# node_modules to'liq ko'chiriladi — ichida prisma CLI ham bor (migrate deploy uchun).
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY package*.json ./
+# Builder'dan tayyor narsalarni node foydalanuvchisi egaligida ko'chiramiz.
+# node_modules to'liq — ichida prisma CLI ham bor (migrate deploy uchun).
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/dist ./dist
+COPY --from=builder --chown=node:node /app/prisma ./prisma
+COPY --chown=node:node package*.json ./
 
-# Yuklangan fayllar uchun papka (volume bilan ulanadi)
-RUN mkdir -p uploads
+# Yuklangan fayllar uchun papka (volume bilan ulanadi), node yoza olishi uchun
+RUN mkdir -p uploads && chown -R node:node uploads
+
+# Xavfsizlik: konteyner root ostida emas, node foydalanuvchisi sifatida ishlaydi
+USER node
 
 EXPOSE 3000
 

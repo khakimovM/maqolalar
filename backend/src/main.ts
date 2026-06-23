@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
+import * as Sentry from '@sentry/node';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { json, urlencoded } from 'express';
@@ -19,6 +20,17 @@ async function bootstrap() {
 
   app.useLogger(app.get(Logger));
   const config = app.get(ConfigService);
+
+  // Sentry — xato kuzatuvi. Faqat SENTRY_DSN o'rnatilgan bo'lsa faollashadi;
+  // aks holda captureException no-op (ilova bemalol ishlaydi).
+  const sentryDsn = config.get<string>('SENTRY_DSN');
+  if (sentryDsn) {
+    Sentry.init({
+      dsn: sentryDsn,
+      environment: config.get<string>('NODE_ENV', 'development'),
+      tracesSampleRate: 0, // faqat xatolar — performance tracing yo'q
+    });
+  }
 
   // Reverse-proxy (nginx) orqasida bo'lsa, haqiqiy mijoz IP'si
   // X-Forwarded-For header'idan olinadi (rate-limit / IP-hash uchun).

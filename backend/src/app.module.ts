@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { BullModule } from '@nestjs/bullmq';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { LoggerModule } from 'nestjs-pino';
@@ -27,6 +28,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
 
 @Module({
   imports: [
@@ -64,6 +66,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
       },
     }),
 
+    // Rate-limit — Redis storage (ko'p instansiyada birgalikda ishlaydi)
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -73,6 +76,9 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
             limit: config.get<number>('THROTTLE_LIMIT', 100),
           },
         ],
+        storage: new ThrottlerStorageRedisService(
+          `redis://${config.get<string>('REDIS_HOST', 'localhost')}:${config.get<number>('REDIS_PORT', 6379)}`,
+        ),
       }),
     }),
     BullModule.forRootAsync({
@@ -105,6 +111,8 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
+    // Sentry xato kuzatuvi — javob formatlanishidan oldin xatolarni "tap" qiladi
+    { provide: APP_INTERCEPTOR, useClass: SentryInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
   ],
 })
