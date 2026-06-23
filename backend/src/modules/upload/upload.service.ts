@@ -33,7 +33,7 @@ async function loadSharp(): Promise<((...a: unknown[]) => unknown) | null> {
  * Faylning HAQIQIY turini birinchi baytlari (magic bytes) bo'yicha aniqlaydi.
  * Client MIME yoki originalname'ga ishonmaydi.
  */
-function sniffImage(buf: Buffer): ImageFormat | null {
+export function sniffImage(buf: Buffer): ImageFormat | null {
   if (buf.length < 12) return null;
   // JPEG: FF D8 FF
   if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg';

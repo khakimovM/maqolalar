@@ -120,16 +120,25 @@ export class AuthService {
   // ==========================================================
 
   async login(dto: LoginDto) {
+    // Brute-force himoyasi: bu email bo'yicha vaqtincha bloklanganmi?
+    await this.ensureLoginNotBlocked(dto.email);
+
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
-    if (!user || !user.password) {
+    const passwordOk =
+      !!user?.password && (await bcrypt.compare(dto.password, user.password));
+
+    if (!user || !user.password || !passwordOk) {
+      // Noto'g'ri email/parol — urinishni hisoblaymiz (chegarada bloklanadi).
+      await this.registerLoginFailure(dto.email);
       throw new UnauthorizedException("Email yoki parol noto'g'ri");
     }
-    if (!(await bcrypt.compare(dto.password, user.password))) {
-      throw new UnauthorizedException("Email yoki parol noto'g'ri");
-    }
+
+    // Parol to'g'ri — hisoblagichni tozalaymiz (haqiqiy egasi kirdi).
+    await this.clearLoginFailures(dto.email);
+
     if (!user.isVerified) {
       throw new UnauthorizedException(
         'Email tasdiqlanmagan — avval emailni tasdiqlang',
@@ -420,6 +429,45 @@ export class AuthService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
+  }
+
+  // ==========================================================
+  // LOGIN LOCKOUT — parol bilan kirishda brute-force himoyasi
+  // ==========================================================
+  // IP-based throttler (10/min) ko'p IP'dan bitta emailga hujumni to'smaydi.
+  // Bu yerda email bo'yicha noto'g'ri urinishlar sanaladi va chegarada bloklanadi.
+
+  /** Email bloklangan bo'lsa — qolgan vaqt bilan 429 otadi. */
+  private async ensureLoginNotBlocked(email: string) {
+    const blockKey = `login:block:${email}`;
+    if (await this.redis.get(blockKey)) {
+      const remaining = await this.redis.ttl(blockKey);
+      throw new HttpException(
+        `Juda ko'p noto'g'ri urinish — kirish vaqtincha bloklandi. ${this.formatDuration(remaining)}dan keyin qayta urinib ko'ring`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+  }
+
+  /** Noto'g'ri urinishni hisoblaydi; chegaraga yetganda emailni bloklaydi. */
+  private async registerLoginFailure(email: string) {
+    const attemptsKey = `login:fail:${email}`;
+    const blockTtl = this.config.get<number>('LOGIN_BLOCK_TTL', 900);
+
+    const attempts = await this.redis.incr(attemptsKey);
+    // Birinchi urinishda hisoblagichga oyna (TTL) o'rnatamiz.
+    if (attempts === 1) await this.redis.expire(attemptsKey, blockTtl);
+
+    const max = this.config.get<number>('LOGIN_MAX_ATTEMPTS', 5);
+    if (attempts >= max) {
+      await this.redis.set(`login:block:${email}`, '1', blockTtl);
+      await this.redis.del(attemptsKey);
+    }
+  }
+
+  /** Muvaffaqiyatli kirishda urinish va blok izlarini tozalaydi. */
+  private async clearLoginFailures(email: string) {
+    await this.redis.del(`login:fail:${email}`, `login:block:${email}`);
   }
 
   /** Sekundni o'qiladigan formatga o'giradi: 9930 → "2 soat 46 daqiqa" */
