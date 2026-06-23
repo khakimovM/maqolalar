@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { BullModule } from '@nestjs/bullmq';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { LoggerModule } from 'nestjs-pino';
 import { join } from 'path';
@@ -23,6 +24,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { UploadModule } from './modules/upload/upload.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
+import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -33,6 +35,9 @@ import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+
+    // Rejalashtirilgan ishlar (retention cron) uchun
+    ScheduleModule.forRoot(),
 
     // Pino structured logging (har so'rov loglanadi)
     LoggerModule.forRootAsync({
@@ -105,6 +110,7 @@ import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
     UploadModule,
     AdminModule,
     HealthModule,
+    MaintenanceModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
