@@ -6,7 +6,7 @@ import katex from "katex";
  * `javascript:`, `data:` kabi protokollar XSS xavfi tug'diradi, shuning uchun
  * ular "#" ga almashtiriladi.
  */
-function safeHref(href: unknown): string {
+export function safeHref(href: unknown): string {
   if (typeof href !== "string") return "#";
   const trimmed = href.trim();
   // nisbiy / anchor havolalar xavfsiz
@@ -20,7 +20,7 @@ function safeHref(href: unknown): string {
  * (//) manbalar ruxsat etiladi. `data:` (SVG data-URI XSS), `javascript:`,
  * `blob:` kabi protokollar rad etiladi (null qaytadi → rasm umuman render qilinmaydi).
  */
-function safeImageSrc(src: unknown): string | null {
+export function safeImageSrc(src: unknown): string | null {
   if (typeof src !== "string") return null;
   const trimmed = src.trim();
   if (trimmed === "") return null;

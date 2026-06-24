@@ -27,7 +27,6 @@ services:
       - .env
     environment:
       NODE_ENV: production
-      # Compose ichida xizmatlar nomi bilan ulanadi (.env dagi localhost o'rniga)
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-maqolalar}
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -36,10 +35,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     ports:
       - '3000:3000'
     volumes:
-      # Yuklangan rasmlar konteyner qayta ishga tushsa ham saqlanadi
       - uploads:/app/uploads
 
 volumes:
