@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Newspaper } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
-import { FontSizeToggle } from "./font-size-toggle";
 import { NotificationBell } from "./notification-bell";
 import { useAuth } from "@/lib/store/auth";
 
@@ -38,13 +37,15 @@ export function Navbar() {
           <BookOpen className="h-5 w-5 text-primary" />
           Maqolalar
         </Link>
-        <nav className="ml-4 hidden items-center gap-5 text-sm text-muted-foreground md:flex">
-          <Link href="/articles" className="transition-colors hover:text-foreground">
-            Maqolalar
-          </Link>
-        </nav>
         <div className="flex-1" />
-        <FontSizeToggle />
+        <Link
+          href="/articles"
+          aria-label="Maqolalar"
+          title="Maqolalar"
+          className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Newspaper className="h-5 w-5" />
+        </Link>
         <ThemeToggle />
 
         {!mounted ? (

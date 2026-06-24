@@ -7,6 +7,7 @@ import { ArrowLeft, Save, Send } from "lucide-react";
 import { RichEditor } from "@/components/rich-editor";
 import { CoverUploader } from "@/components/cover-uploader";
 import { FormError } from "@/components/form";
+import { Select } from "@/components/select";
 import {
   fetchCategories,
   createArticle,
@@ -148,17 +149,16 @@ export function ArticleForm({ initial }: { initial?: Initial }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="cat" className="block text-sm font-medium">Kategoriya</label>
-            <select
+            <Select
               id="cat"
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
-            >
-              <option value="">— tanlang —</option>
-              {categories.data?.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+              onChange={setCategoryId}
+              placeholder="— tanlang —"
+              options={(categories.data ?? []).map((c) => ({
+                value: c.id,
+                label: c.name,
+              }))}
+            />
           </div>
           <div className="space-y-1.5">
             <span className="block text-sm font-medium">Tur</span>

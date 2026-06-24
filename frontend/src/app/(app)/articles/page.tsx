@@ -9,6 +9,7 @@ import {
   type ArticleQuery,
 } from "@/lib/articles";
 import { ArticleCard } from "@/components/article-card";
+import { useAuth } from "@/lib/store/auth";
 
 const TYPES: { label: string; value: ArticleQuery["type"] }[] = [
   { label: "Hammasi", value: undefined },
@@ -32,6 +33,11 @@ export default function ArticlesPage() {
   const [type, setType] = useState<ArticleQuery["type"]>(undefined);
   const [page, setPage] = useState(1);
 
+  // Auth bootstrap tugamaguncha kutamiz — aks holda so'rov tokensiz ketib,
+  // backend bizni mehmon deb biladi va premium maqolalarni yashiradi.
+  const hydrated = useAuth((s) => s.hydrated);
+  const userId = useAuth((s) => s.user?.id ?? null);
+
   useEffect(() => {
     const t = setTimeout(() => {
       setDebounced(search);
@@ -43,7 +49,7 @@ export default function ArticlesPage() {
   const cats = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: ["articles", { page, debounced, category, type }],
+    queryKey: ["articles", { page, debounced, category, type, auth: userId }],
     queryFn: () =>
       fetchArticles({
         page,
@@ -52,6 +58,7 @@ export default function ArticlesPage() {
         category,
         type,
       }),
+    enabled: hydrated,
     placeholderData: keepPreviousData,
   });
 
@@ -122,7 +129,7 @@ export default function ArticlesPage() {
 
       {/* Grid */}
       <div className="mt-8 min-h-[400px]">
-        {isLoading ? (
+        {!hydrated || isLoading ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div

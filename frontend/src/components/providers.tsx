@@ -61,6 +61,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }),
   );
 
+  // Akkaunt almashganda (logout yoki boshqa user) eski keshni tozalaymiz —
+  // aks holda yangi user bir lahza oldingi userning bildirishnoma/ma'lumotlarini ko'radi.
+  const userId = useAuth((s) => s.user?.id ?? null);
+  const prevUserId = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (prevUserId.current !== undefined && prevUserId.current !== userId) {
+      queryClient.clear();
+    }
+    prevUserId.current = userId;
+  }, [userId, queryClient]);
+
   return (
     <ThemeProvider
       attribute="class"
