@@ -23,11 +23,11 @@ import { useAuth } from "@/lib/store/auth";
 
 function fmtDate(s?: string) {
   if (!s) return "";
-  return new Date(s).toLocaleDateString("uz-UZ", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${d.getFullYear()}`;
 }
 
 export default function AdminsPage() {

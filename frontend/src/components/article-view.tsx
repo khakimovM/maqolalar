@@ -33,11 +33,11 @@ import { useToast } from "@/components/toast";
 
 function fmtDate(s: string | null) {
   if (!s) return "";
-  return new Date(s).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${d.getFullYear()}`;
 }
 
 function ArticleContent() {

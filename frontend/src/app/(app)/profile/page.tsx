@@ -22,10 +22,11 @@ const TABS: { id: Tab; label: string }[] = [
 
 function fmtDate(s?: string) {
   if (!s) return null;
-  return new Date(s).toLocaleDateString("uz-UZ", {
-    year: "numeric",
-    month: "long",
-  });
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return null;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${d.getFullYear()}`;
 }
 
 function RoleBadge({ role }: { role: string }) {

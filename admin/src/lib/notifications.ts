@@ -64,8 +64,8 @@ export function relativeTime(iso: string): string {
   if (h < 24) return `${h} soat oldin`;
   const d = Math.floor(h / 24);
   if (d < 7) return `${d} kun oldin`;
-  return new Date(iso).toLocaleDateString("uz-UZ", {
-    day: "numeric",
-    month: "short",
-  });
+  const dt = new Date(iso);
+  const dd = String(dt.getDate()).padStart(2, "0");
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${dt.getFullYear()}`;
 }

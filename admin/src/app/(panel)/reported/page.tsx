@@ -15,11 +15,11 @@ import { useConfirm } from "@/components/confirm-dialog";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
 
 function fmtDate(s: string) {
-  return new Date(s).toLocaleDateString("uz-UZ", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${d.getFullYear()}`;
 }
 
 function ReportedCard({
