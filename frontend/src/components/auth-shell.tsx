@@ -65,6 +65,20 @@ export function AuthShell({
             {footer}
           </div>
         )}
+
+        {process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL && (
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            Maqola yozmoqchimisiz?{" "}
+            <a
+              href={process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-primary hover:underline"
+            >
+              Superadmin bilan bog&apos;laning
+            </a>
+          </p>
+        )}
       </motion.div>
     </main>
   );

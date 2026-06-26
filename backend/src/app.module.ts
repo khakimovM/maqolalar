@@ -25,6 +25,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
+import { TelegramModule } from './modules/telegram/telegram.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -111,6 +112,7 @@ import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
     AdminModule,
     HealthModule,
     MaintenanceModule,
+    TelegramModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
