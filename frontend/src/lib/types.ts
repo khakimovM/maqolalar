@@ -45,6 +45,8 @@ export interface ArticleCard {
 /** Bitta maqola (to'liq content bilan). */
 export interface ArticleFull extends ArticleCard {
   content: unknown; // Tiptap JSON
+  /** Zotero iqtibos uslubi (.csl) biriktirilgan bo'lsa — yo'l. */
+  citationStyle?: string | null;
 }
 
 /**

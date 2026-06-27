@@ -9,7 +9,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Role } from '@prisma/client';
 import { UploadService } from './upload.service';
-import { multerOptions } from './multer.config';
+import { multerOptions, multerCslOptions } from './multer.config';
 import { MulterExceptionFilter } from './multer-exception.filter';
 import { Roles } from '../../common/decorators/roles.decorator';
 
@@ -42,6 +42,18 @@ export class UploadController {
   @UseInterceptors(FileInterceptor('file', multerOptions()))
   uploadArticleImage(@UploadedFile() file?: UploadedImage) {
     return this.respond('articles', file);
+  }
+
+  /** Maqola iqtibos uslubi (.csl). ADMIN+ */
+  @Roles(Role.ADMIN)
+  @Post('citation-style')
+  @UseInterceptors(FileInterceptor('file', multerCslOptions()))
+  async uploadCitationStyle(@UploadedFile() file?: { buffer: Buffer }) {
+    if (!file) {
+      throw new BadRequestException('Fayl yuborilmadi (maydon nomi: file)');
+    }
+    const url = await this.uploadService.saveCsl(file.buffer);
+    return { data: { url }, message: 'Iqtibos uslubi yuklandi' };
   }
 
   private async respond(subdir: string, file?: UploadedImage) {

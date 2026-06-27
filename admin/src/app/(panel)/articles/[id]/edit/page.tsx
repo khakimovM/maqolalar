@@ -47,6 +47,7 @@ export default function EditArticlePage() {
         type: data.type,
         excerpt: data.excerpt,
         coverImage: data.coverImage,
+        citationStyle: data.citationStyle,
         status: data.status,
       }}
     />

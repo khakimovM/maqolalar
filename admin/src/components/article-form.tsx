@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { ArrowLeft, Save, Send } from "lucide-react";
 import { RichEditor } from "@/components/rich-editor";
 import { CoverUploader } from "@/components/cover-uploader";
+import { CslUploader } from "@/components/csl-uploader";
 import { FormError } from "@/components/form";
 import { Select } from "@/components/select";
 import {
@@ -28,6 +29,7 @@ interface Initial {
   type?: ArticleType;
   excerpt?: string | null;
   coverImage?: string | null;
+  citationStyle?: string | null;
   status?: ArticleStatus;
 }
 
@@ -52,6 +54,9 @@ export function ArticleForm({ initial }: { initial?: Initial }) {
   const [excerpt, setExcerpt] = useState(initial?.excerpt ?? "");
   const [coverImage, setCoverImage] = useState<string | null>(
     initial?.coverImage ?? null,
+  );
+  const [citationStyle, setCitationStyle] = useState<string | null>(
+    initial?.citationStyle ?? null,
   );
   const [content, setContent] = useState<Json | null>(initial?.content ?? null);
   const [err, setErr] = useState<string | null>(null);
@@ -89,6 +94,7 @@ export function ArticleForm({ initial }: { initial?: Initial }) {
       type,
       ...(ex ? { excerpt: ex } : {}),
       ...(coverImage ? { coverImage } : {}),
+      citationStyle: citationStyle ?? "",
     };
   }
 
@@ -186,6 +192,19 @@ export function ArticleForm({ initial }: { initial?: Initial }) {
         <div className="space-y-1.5">
           <span className="block text-sm font-medium">Muqova</span>
           <CoverUploader value={coverImage} onChange={setCoverImage} />
+        </div>
+
+        {/* Zotero iqtibos uslubi (.csl) */}
+        <div className="space-y-1.5">
+          <span className="block text-sm font-medium">
+            Zotero uslubi{" "}
+            <span className="text-muted-foreground">(ixtiyoriy)</span>
+          </span>
+          <CslUploader value={citationStyle} onChange={setCitationStyle} />
+          <p className="text-xs text-muted-foreground">
+            O&apos;quvchilar maqola sahifasida bu uslubni to&apos;g&apos;ridan-to&apos;g&apos;ri
+            Zotero&apos;ga o&apos;rnatadi.
+          </p>
         </div>
 
         {/* Qisqacha izoh */}

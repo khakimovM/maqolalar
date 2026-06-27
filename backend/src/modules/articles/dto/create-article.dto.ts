@@ -31,4 +31,9 @@ export class CreateArticleDto {
   @IsOptional()
   @IsString()
   coverImage?: string;
+
+  /** Zotero iqtibos uslubi (.csl) fayl yo'li — /upload/citation-style qaytaradi. */
+  @IsOptional()
+  @IsString()
+  citationStyle?: string;
 }

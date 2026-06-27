@@ -15,6 +15,7 @@ export interface AdminArticle {
   slug: string;
   excerpt: string | null;
   coverImage: string | null;
+  citationStyle?: string | null;
   type: ArticleType;
   status: ArticleStatus;
   viewCount: number;
@@ -69,6 +70,7 @@ export interface ArticleInput {
   type?: ArticleType;
   excerpt?: string;
   coverImage?: string;
+  citationStyle?: string;
 }
 
 // ── Maqolalar ─────────────────────────────────────────────
@@ -202,6 +204,14 @@ export async function uploadCover(file: File): Promise<string> {
   const form = new FormData();
   form.append("file", file);
   const res = await api.post("/upload/cover", form);
+  return res.data.data.url as string;
+}
+
+/** Zotero iqtibos uslubi (.csl) yuklash. POST /upload/citation-style */
+export async function uploadCitationStyle(file: File): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await api.post("/upload/citation-style", form);
   return res.data.data.url as string;
 }
 

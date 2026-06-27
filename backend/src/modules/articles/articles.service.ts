@@ -6,6 +6,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ArticleStatus, ArticleType, Prisma, Role, User } from '@prisma/client';
 import { createHash } from 'crypto';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+import { uploadRoot } from '../upload/multer.config';
 import { PrismaService } from '../../database/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { slugify } from '../../common/utils/slugify';
@@ -151,6 +154,30 @@ export class ArticlesService {
   // ADMIN: CRUD
   // ==========================================================
 
+  /**
+   * Maqolaning .csl iqtibos uslubini RAW matn sifatida qaytaradi. Controller uni
+   * to'g'ri MIME bilan yuboradi → Zotero Connector "uslubni o'rnataymi?" deydi.
+   */
+  async getCitationStyle(slug: string): Promise<string> {
+    const article = await this.prisma.article.findUnique({
+      where: { slug },
+      select: { citationStyle: true },
+    });
+    if (!article?.citationStyle) {
+      throw new NotFoundException('Bu maqolada iqtibos uslubi yo\'q');
+    }
+    // Faqat fayl nomini olamiz — path-traversal himoyasi
+    const filename = article.citationStyle.split('/').pop() ?? '';
+    if (!/^[\w.-]+\.csl$/.test(filename)) {
+      throw new NotFoundException('Iqtibos uslubi fayli topilmadi');
+    }
+    try {
+      return await readFile(join(uploadRoot(), 'styles', filename), 'utf8');
+    } catch {
+      throw new NotFoundException('Iqtibos uslubi fayli topilmadi');
+    }
+  }
+
   async create(dto: CreateArticleDto, authorId: string) {
     await this.ensureCategoryExists(dto.categoryId);
 
@@ -164,6 +191,7 @@ export class ArticlesService {
         searchText,
         excerpt: dto.excerpt ?? this.deriveExcerpt(searchText),
         coverImage: dto.coverImage,
+        citationStyle: dto.citationStyle,
         type: dto.type ?? ArticleType.FREE,
         authorId,
         categoryId: dto.categoryId,
@@ -190,6 +218,9 @@ export class ArticlesService {
         ...(dto.content && { content: dto.content, searchText }),
         ...(dto.excerpt !== undefined && { excerpt: dto.excerpt }),
         ...(dto.coverImage !== undefined && { coverImage: dto.coverImage }),
+        ...(dto.citationStyle !== undefined && {
+          citationStyle: dto.citationStyle,
+        }),
         ...(dto.type && { type: dto.type }),
         ...(dto.categoryId && { categoryId: dto.categoryId }),
       },

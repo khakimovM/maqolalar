@@ -8,7 +8,9 @@ import {
   Post,
   Put,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { Role } from '@prisma/client';
 import { ArticlesService } from './articles.service';
 import { Public } from '../../common/decorators/public.decorator';
@@ -56,6 +58,22 @@ export class ArticlesController {
   @Get(':slug/meta')
   findMetaBySlug(@Param('slug') slug: string) {
     return this.articlesService.findMetaBySlug(slug);
+  }
+
+  /**
+   * Maqolaning Zotero iqtibos uslubi (.csl). To'g'ri MIME bilan yuboriladi —
+   * Zotero Connector o'rnatilgan o'quvchida "uslubni o'rnataymi?" deb so'raydi.
+   * @Res ishlatamiz — global ResponseInterceptor wrap qilmasin (raw XML kerak).
+   */
+  @Public()
+  @Get(':slug/citation-style')
+  async citationStyle(@Param('slug') slug: string, @Res() res: Response) {
+    const csl = await this.articlesService.getCitationStyle(slug);
+    res.set({
+      'Content-Type': 'application/vnd.citationstyles.style+xml; charset=utf-8',
+      'Content-Disposition': 'inline',
+    });
+    res.send(csl);
   }
 
   @Public()

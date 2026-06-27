@@ -15,6 +15,17 @@ export function uploadRoot(): string {
 }
 
 /**
+ * CSL (.csl) yuklash uchun multer — fayl XOTIRAGA, 1MB limit.
+ * Haqiqiy tur tekshiruvi UploadService.saveCsl ichida (CSL XML mazmuni).
+ */
+export function multerCslOptions() {
+  return {
+    storage: memoryStorage(),
+    limits: { fileSize: 1024 * 1024 },
+  };
+}
+
+/**
  * FileInterceptor uchun multer sozlamalari.
  *
  * Fayl DISKKA emas, XOTIRAGA (buffer) qabul qilinadi — shunda ishonchsiz

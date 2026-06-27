@@ -58,7 +58,7 @@ export function sniffImage(buf: Buffer): ImageFormat | null {
 @Injectable()
 export class UploadService {
   private readonly logger = new Logger(UploadService.name);
-  private readonly subdirs = ['avatars', 'covers', 'articles'];
+  private readonly subdirs = ['avatars', 'covers', 'articles', 'styles'];
 
   constructor(private readonly config: ConfigService) {
     // Yuklash papkalari mavjudligini ta'minlaymiz (start paytida)
@@ -127,6 +127,26 @@ export class UploadService {
 
     await writeFile(join(dir, filename), out);
     return this.toUrl(subdir, filename);
+  }
+
+  /**
+   * CSL (.csl) iqtibos uslubini saqlaydi. Rasm emas — XML matn; mazmunini
+   * tekshiramiz (CSL ildiz tegi) va uploads/styles/ ga yozamiz.
+   */
+  async saveCsl(buffer?: Buffer): Promise<string> {
+    if (!buffer || buffer.length === 0) {
+      throw new BadRequestException("Fayl yuborilmadi yoki bo'sh");
+    }
+    const text = buffer.toString('utf8');
+    if (
+      !/<style[\s>]/i.test(text) ||
+      !/purl\.org\/net\/xbiblio\/csl/i.test(text)
+    ) {
+      throw new BadRequestException('Bu CSL (.csl) iqtibos uslubi fayli emas');
+    }
+    const filename = `${randomUUID()}.csl`;
+    await writeFile(join(uploadRoot(), 'styles', filename), text, 'utf8');
+    return `/uploads/styles/${filename}`;
   }
 
   /** Yuklangan faylning to'liq public URL'ini yasaydi. */

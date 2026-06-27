@@ -148,6 +148,7 @@ model Article {
   content     Json          // Rich text (Tiptap JSON format)
   searchText  String        @default("") // content'dan olingan plain text — qidiruv uchun, create/update da yangilanadi
   coverImage  String?       // Asosiy muqova rasmi
+  citationStyle String?     // Zotero iqtibos uslubi (.csl) fayl yo'li (ixtiyoriy)
   type        ArticleType   @default(FREE)
   status      ArticleStatus @default(DRAFT)
   viewCount   Int           @default(0) // tezkor counter; batafsil statistika ArticleView da
