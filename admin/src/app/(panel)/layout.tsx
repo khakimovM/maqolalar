@@ -13,6 +13,7 @@ import {
   LogOut,
   Flag,
   User,
+  Inbox,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
@@ -25,6 +26,7 @@ const NAV = [
   { href: "/", label: "Boshqaruv", short: "Asosiy", icon: LayoutDashboard, exact: true },
   { href: "/articles", label: "Maqolalar", short: "Maqola", icon: FileText },
   { href: "/reported", label: "Shikoyatlar", short: "Shikoyat", icon: Flag },
+  { href: "/requests", label: "Arizalar", short: "Ariza", icon: Inbox, super: true },
   { href: "/categories", label: "Kategoriyalar", short: "Bo'lim", icon: FolderTree, super: true },
   { href: "/admins", label: "Adminlar", short: "Admin", icon: Users, super: true },
   { href: "/profile", label: "Profil", short: "Profil", icon: User },

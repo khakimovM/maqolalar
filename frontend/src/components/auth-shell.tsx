@@ -20,6 +20,14 @@ export function AuthShell({
   children: React.ReactNode;
   footer?: React.ReactNode;
 }) {
+  // Env'da https:// bo'lmasa ham to'g'ri ishlasin (aks holda nisbiy URL bo'lib qoladi).
+  const rawBot = process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL;
+  const botUrl = rawBot
+    ? /^https?:\/\//i.test(rawBot)
+      ? rawBot
+      : `https://${rawBot}`
+    : null;
+
   return (
     <main className="relative flex min-h-dvh items-center justify-center bg-background px-4 py-12 text-foreground">
       {/* Yengil yashil yorug'lik */}
@@ -66,11 +74,11 @@ export function AuthShell({
           </div>
         )}
 
-        {process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL && (
+        {botUrl && (
           <p className="mt-3 text-center text-xs text-muted-foreground">
             Maqola yozmoqchimisiz?{" "}
             <a
-              href={process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL}
+              href={botUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-primary hover:underline"

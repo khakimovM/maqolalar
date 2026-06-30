@@ -51,6 +51,70 @@ export class AdminService {
     return { data: admin, message: 'Admin yaratildi' };
   }
 
+  /** Telegram orqali kelgan "muallif bo'lish" arizalari statistikasi. */
+  async adminRequests() {
+    const [pending, approved, rejected, recent] = await Promise.all([
+      this.prisma.adminRequest.count({ where: { status: 'PENDING' } }),
+      this.prisma.adminRequest.count({ where: { status: 'APPROVED' } }),
+      this.prisma.adminRequest.count({ where: { status: 'REJECTED' } }),
+      this.prisma.adminRequest.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          name: true,
+          telegramUsername: true,
+          phone: true,
+          reason: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    return {
+      data: {
+        counts: {
+          pending,
+          approved,
+          rejected,
+          total: pending + approved + rejected,
+        },
+        recent,
+      },
+      message: 'OK',
+    };
+  }
+
+  /** Arizalar vaqt qatori (davr bo'yicha) — dashboarddagi kabi buckets. */
+  async adminRequestsSeries(query: StatsQueryDto) {
+    const buckets = this.buildBuckets(query);
+    const range = {
+      gte: buckets[0].start,
+      lt: buckets[buckets.length - 1].end,
+    };
+    const rows = await this.prisma.adminRequest.findMany({
+      where: { createdAt: range },
+      select: { createdAt: true, status: true },
+    });
+    const total = new Array<number>(buckets.length).fill(0);
+    const approved = new Array<number>(buckets.length).fill(0);
+    for (const r of rows) {
+      const t = r.createdAt.getTime();
+      for (let i = 0; i < buckets.length; i++) {
+        if (t >= buckets[i].start.getTime() && t < buckets[i].end.getTime()) {
+          total[i] += 1;
+          if (r.status === 'APPROVED') approved[i] += 1;
+          break;
+        }
+      }
+    }
+    return {
+      data: { buckets: buckets.map((b) => b.label), total, approved },
+      message: 'OK',
+    };
+  }
+
   /** Adminlar ro'yxati (maqolalar soni bilan). */
   async listAdmins() {
     const admins = await this.prisma.user.findMany({

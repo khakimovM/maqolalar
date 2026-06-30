@@ -46,4 +46,16 @@ export class AdminController {
   timeseries(@Query() query: StatsQueryDto) {
     return this.adminService.timeseries(query);
   }
+
+  /** Telegram "muallif bo'lish" arizalari statistikasi. */
+  @Get('admin-requests')
+  adminRequests() {
+    return this.adminService.adminRequests();
+  }
+
+  /** Arizalar vaqt qatori — ?period= yoki ?from=&to= */
+  @Get('admin-requests/series')
+  adminRequestSeries(@Query() query: StatsQueryDto) {
+    return this.adminService.adminRequestsSeries(query);
+  }
 }

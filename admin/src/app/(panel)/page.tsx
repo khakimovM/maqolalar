@@ -257,6 +257,7 @@ export default function AdminDashboard() {
     enabled: isSuper,
   });
 
+
   const [period, setPeriod] = useState<Period>("daily");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");

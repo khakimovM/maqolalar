@@ -341,3 +341,30 @@ model EmailLog {
   @@index([status])
   @@map("email_logs")
 }
+
+// ============================================================
+// ADMIN REQUEST — Telegram orqali "muallif bo'lish" arizalari
+// ============================================================
+
+enum AdminRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AdminRequest {
+  id               String             @id @default(cuid())
+  telegramId       String // arizachining Telegram chat id'si
+  telegramUsername String? // @username (bo'lmasligi mumkin)
+  name             String
+  phone            String?
+  reason           String
+  status           AdminRequestStatus @default(PENDING)
+  createdUserId    String? // tasdiqlangach yaratilgan admin id
+  createdAt        DateTime           @default(now())
+  decidedAt        DateTime?
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("admin_requests")
+}

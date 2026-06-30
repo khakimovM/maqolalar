@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ShieldCheck, BadgeCheck, LogOut, CalendarDays } from "lucide-react";
+import {
+  ShieldCheck,
+  BadgeCheck,
+  LogOut,
+  CalendarDays,
+  PenLine,
+} from "lucide-react";
 import { AvatarUploader } from "@/components/avatar-uploader";
 import { ProfileSettings } from "@/components/profile-settings";
 import { SavedList } from "@/components/saved-list";
@@ -74,6 +80,14 @@ export default function ProfilePage() {
     );
   }
 
+  // Env'da https:// bo'lmasa ham to'g'ri ishlasin (aks holda nisbiy URL bo'lib qoladi).
+  const rawBot = process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL;
+  const botUrl = rawBot
+    ? /^https?:\/\//i.test(rawBot)
+      ? rawBot
+      : `https://${rawBot}`
+    : null;
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-10 sm:px-8">
       {/* Sarlavha karta */}
@@ -120,6 +134,26 @@ export default function ProfilePage() {
           Chiqish
         </button>
       </motion.div>
+
+      {/* Oddiy user uchun: muallif bo'lish so'rovi (Telegram) */}
+      {user.role === "USER" && botUrl && (
+        <a
+          href={botUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-6 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm transition-colors hover:bg-primary/10"
+        >
+          <PenLine className="h-5 w-5 shrink-0 text-primary" />
+          <span>
+            <span className="font-medium text-foreground">
+              Maqola yozmoqchimisiz?
+            </span>{" "}
+            <span className="text-muted-foreground">
+              Muallif bo&apos;lish uchun superadmin bilan bog&apos;laning →
+            </span>
+          </span>
+        </a>
+      )}
 
       {/* Tablar */}
       <div className="mt-8 flex gap-1 border-b border-border">

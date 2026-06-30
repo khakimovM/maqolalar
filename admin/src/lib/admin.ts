@@ -215,6 +215,47 @@ export async function uploadCitationStyle(file: File): Promise<string> {
   return res.data.data.url as string;
 }
 
+// ── Telegram "muallif bo'lish" arizalari (SUPERADMIN) ─────
+
+export interface AdminRequestItem {
+  id: string;
+  name: string;
+  telegramUsername: string | null;
+  phone: string | null;
+  reason: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  createdAt: string;
+}
+export interface AdminRequestsData {
+  counts: {
+    pending: number;
+    approved: number;
+    rejected: number;
+    total: number;
+  };
+  recent: AdminRequestItem[];
+}
+export interface AdminRequestSeries {
+  buckets: string[];
+  total: number[];
+  approved: number[];
+}
+
+export async function fetchAdminRequests(): Promise<AdminRequestsData> {
+  const res = await api.get("/admin/admin-requests");
+  return res.data.data;
+}
+
+/** Arizalar vaqt qatori. ?period=daily|monthly|yearly yoki ?from=&to= */
+export async function fetchAdminRequestSeries(params?: {
+  period?: "daily" | "monthly" | "yearly";
+  from?: string;
+  to?: string;
+}): Promise<AdminRequestSeries> {
+  const res = await api.get("/admin/admin-requests/series", { params });
+  return res.data.data;
+}
+
 // ── Kategoriyalar ro'yxati ─────────────────────────────────
 
 export interface AdminCategory {
