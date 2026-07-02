@@ -17,6 +17,7 @@ import {
   type ArticleInput,
 } from "@/lib/admin";
 import { apiError } from "@/lib/api";
+import { useAuth } from "@/lib/store/auth";
 import type { ArticleType, ArticleStatus } from "@/lib/types";
 
 type Json = Record<string, unknown>;
@@ -47,6 +48,7 @@ function textLength(node: unknown): number {
 export function ArticleForm({ initial }: { initial?: Initial }) {
   const router = useRouter();
   const isEdit = Boolean(initial?.id);
+  const isSuper = useAuth((s) => s.user?.role === "SUPERADMIN");
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
@@ -194,18 +196,20 @@ export function ArticleForm({ initial }: { initial?: Initial }) {
           <CoverUploader value={coverImage} onChange={setCoverImage} />
         </div>
 
-        {/* Zotero iqtibos uslubi (.csl) */}
-        <div className="space-y-1.5">
-          <span className="block text-sm font-medium">
-            Zotero uslubi{" "}
-            <span className="text-muted-foreground">(ixtiyoriy)</span>
-          </span>
-          <CslUploader value={citationStyle} onChange={setCitationStyle} />
-          <p className="text-xs text-muted-foreground">
-            O&apos;quvchilar maqola sahifasida bu uslubni to&apos;g&apos;ridan-to&apos;g&apos;ri
-            Zotero&apos;ga o&apos;rnatadi.
-          </p>
-        </div>
+        {/* Zotero iqtibos uslubi (.csl) — faqat superadmin yuklaydi */}
+        {isSuper && (
+          <div className="space-y-1.5">
+            <span className="block text-sm font-medium">
+              Zotero uslubi{" "}
+              <span className="text-muted-foreground">(ixtiyoriy)</span>
+            </span>
+            <CslUploader value={citationStyle} onChange={setCitationStyle} />
+            <p className="text-xs text-muted-foreground">
+              O&apos;quvchilar maqola sahifasida bu uslubni Zotero&apos;ga
+              o&apos;rnatadi.
+            </p>
+          </div>
+        )}
 
         {/* Qisqacha izoh */}
         <div className="space-y-1.5">

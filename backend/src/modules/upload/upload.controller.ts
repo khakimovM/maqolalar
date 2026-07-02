@@ -44,8 +44,8 @@ export class UploadController {
     return this.respond('articles', file);
   }
 
-  /** Maqola iqtibos uslubi (.csl). ADMIN+ */
-  @Roles(Role.ADMIN)
+  /** Maqola iqtibos uslubi (.csl). Faqat SUPERADMIN. */
+  @Roles(Role.SUPERADMIN)
   @Post('citation-style')
   @UseInterceptors(FileInterceptor('file', multerCslOptions()))
   async uploadCitationStyle(@UploadedFile() file?: { buffer: Buffer }) {

@@ -13,7 +13,6 @@ import { saveProgress, fetchReading } from "@/lib/profile";
 import {
   ArrowLeft,
   Bookmark,
-  BookMarked,
   Eye,
   Heart,
   Lock,
@@ -29,10 +28,9 @@ import {
 } from "@/lib/articles";
 import { TiptapRender } from "@/components/tiptap-render";
 import { Comments } from "@/components/comments";
+import { ZoteroButton } from "@/components/zotero-install";
 import { useAuth } from "@/lib/store/auth";
 import { useToast } from "@/components/toast";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 function fmtDate(s: string | null) {
   if (!s) return "";
@@ -322,16 +320,7 @@ function ArticleContent() {
             icon={<Bookmark className={"h-5 w-5 " + (saved ? "fill-current" : "")} />}
           />
 
-          {data.citationStyle && (
-            <a
-              href={`${API_BASE}/articles/${data.slug}/citation-style`}
-              title="Zotero iqtibos uslubini o'rnatish"
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <BookMarked className="h-5 w-5" />
-              <span className="hidden sm:inline">Zotero</span>
-            </a>
-          )}
+          {data.citationStyle && <ZoteroButton slug={data.slug} />}
 
           <div className="flex-1" />
 

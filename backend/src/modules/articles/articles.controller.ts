@@ -69,10 +69,10 @@ export class ArticlesController {
   @Get(':slug/citation-style')
   async citationStyle(@Param('slug') slug: string, @Res() res: Response) {
     const csl = await this.articlesService.getCitationStyle(slug);
-    res.set({
-      'Content-Type': 'application/vnd.citationstyles.style+xml; charset=utf-8',
-      'Content-Disposition': 'inline',
-    });
+    // Aynan shu MIME (charset'siz) — Zotero Connector uni ushlab, uslubni
+    // o'rnatishni taklif qiladi. Content-Disposition: inline — yuklashga majburlamaymiz.
+    res.setHeader('Content-Type', 'application/vnd.citationstyles.style+xml');
+    res.setHeader('Content-Disposition', 'inline');
     res.send(csl);
   }
 
