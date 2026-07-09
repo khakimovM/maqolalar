@@ -1,0 +1,76 @@
+# ============================================================
+# Maqolalar — to'liq production stack (bitta buyruq bilan)
+#   backend + frontend + admin + PostgreSQL + Redis
+#
+# Ishga tushirish (repo ildizida):
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Portlar (IP bosqichi):
+#   frontend → http://SERVER_IP        (80)
+#   admin    → http://SERVER_IP:8080
+#   backend  → http://SERVER_IP:3000
+# ============================================================
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-maqolalar}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      # Compose ichida xizmat nomi bilan ulanadi (.env dagi localhost o'rniga)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-maqolalar}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      TRUST_PROXY: '1'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - '3000:3000'
+    volumes:
+      - uploads:/app/uploads
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '80:3001'
+
+  admin:
+    build: ./admin
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '8080:3002'
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:
