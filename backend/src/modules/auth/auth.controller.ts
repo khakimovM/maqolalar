@@ -37,9 +37,15 @@ export class AuthController {
   ) {}
 
   private get cookieBaseOptions() {
+    // COOKIE_SECURE berilsa — o'shanga bo'ysunadi (HTTP/IP bosqichida 'false').
+    // Berilmasa — NODE_ENV=production da true. HTTPS'da true bo'lishi SHART.
+    const secureEnv = this.config.get<string>('COOKIE_SECURE');
     return {
       httpOnly: true,
-      secure: this.config.get<string>('NODE_ENV') === 'production',
+      secure:
+        secureEnv !== undefined
+          ? secureEnv === 'true'
+          : this.config.get<string>('NODE_ENV') === 'production',
       sameSite: 'lax' as const,
       path: COOKIE_PATH,
     };
