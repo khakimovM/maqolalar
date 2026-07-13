@@ -19,6 +19,9 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Backup uchun pg_dump (postgres 16 mijozi) — tar/gzip alpine bilan keladi
+RUN apk add --no-cache postgresql16-client
+
 # Builder'dan tayyor narsalarni node foydalanuvchisi egaligida ko'chiramiz.
 # node_modules to'liq — ichida prisma CLI ham bor (migrate deploy uchun).
 COPY --from=builder --chown=node:node /app/node_modules ./node_modules
@@ -26,8 +29,8 @@ COPY --from=builder --chown=node:node /app/dist ./dist
 COPY --from=builder --chown=node:node /app/prisma ./prisma
 COPY --chown=node:node package*.json ./
 
-# Yuklangan fayllar uchun papka (volume bilan ulanadi), node yoza olishi uchun
-RUN mkdir -p uploads && chown -R node:node uploads
+# Yuklangan fayllar + zaxiralar papkasi (volume bilan ulanadi), node yoza olishi uchun
+RUN mkdir -p uploads backups && chown -R node:node uploads backups
 
 # Xavfsizlik: konteyner root ostida emas, node foydalanuvchisi sifatida ishlaydi
 USER node

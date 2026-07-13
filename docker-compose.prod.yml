@@ -54,6 +54,9 @@ services:
       - '127.0.0.1:3000:3000'
     volumes:
       - uploads:/app/uploads
+      # Zaxiralar host papkasiga (bind) — bot va cron bir joyga yozadi,
+      # kerak bo'lsa scp bilan ham olib bo'ladi
+      - ./backups:/app/backups
 
   frontend:
     build: ./frontend

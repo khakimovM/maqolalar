@@ -9,12 +9,29 @@ import { Telegraf, Markup } from 'telegraf';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
+import { BackupService } from '../backup/backup.service';
 
 type Step = 'name' | 'phone' | 'reason';
 interface Session {
   step: Step;
   name?: string;
   phone?: string;
+}
+
+/** Telegram sendDocument limiti (bot API) ~50 MB. */
+const TG_FILE_LIMIT = 50 * 1024 * 1024;
+
+/** Bayt hajmini o'qishga qulay ko'rinishga o'giradi. */
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let v = bytes / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toFixed(1)} ${units[i]}`;
 }
 
 /**
@@ -40,6 +57,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly backup: BackupService,
   ) {}
 
   onModuleInit() {
@@ -77,6 +95,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           [
             { command: 'stats', description: 'Arizalar statistikasi' },
             { command: 'pending', description: 'Kutilayotgan arizalar' },
+            { command: 'backup', description: 'Zaxira (backup) boshqaruvi' },
             { command: 'help', description: 'Buyruqlar ro\'yxati' },
           ],
           { scope: { type: 'chat', chat_id: Number(this.superadminId) } },
@@ -120,8 +139,57 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       await ctx.reply(
         'Buyruqlar:\n' +
           '/stats — arizalar statistikasi\n' +
-          '/pending — kutilayotgan arizalar (tugmalar bilan)',
+          '/pending — kutilayotgan arizalar (tugmalar bilan)\n' +
+          '/backup — zaxira yaratish va yuklab olish',
       );
+    });
+
+    // ---- Backup (faqat superadmin) ----
+    bot.command('backup', async (ctx) => {
+      if (String(ctx.from.id) !== this.superadminId) return;
+      await this.sendBackupMenu(ctx);
+    });
+
+    bot.action('backup:create', async (ctx) => {
+      if (String(ctx.from?.id) !== this.superadminId) {
+        await ctx.answerCbQuery("Ruxsat yo'q");
+        return;
+      }
+      if (this.backup.isRunning()) {
+        await ctx.answerCbQuery('Backup allaqachon ketyapti', {
+          show_alert: true,
+        });
+        return;
+      }
+      await ctx.answerCbQuery('Boshlandi...');
+      const status = await ctx.reply('⏳ Backup yaratilyapti, biroz kuting...');
+      try {
+        const { db, uploads } = await this.backup.createBackup();
+        await ctx.telegram.editMessageText(
+          status.chat.id,
+          status.message_id,
+          undefined,
+          `✅ Backup tayyor\n\n` +
+            `🗄 DB: ${db.name} (${fmtSize(db.size)})\n` +
+            (uploads
+              ? `🖼 Rasmlar: ${uploads.name} (${fmtSize(uploads.size)})`
+              : '🖼 Rasmlar: yo\'q'),
+          Markup.inlineKeyboard([
+            [Markup.button.callback('⬇️ Yuklab olish', 'backup:latest')],
+          ]),
+        );
+      } catch (e) {
+        await ctx.reply(`❌ Backup xato: ${String(e).slice(0, 300)}`);
+      }
+    });
+
+    bot.action('backup:latest', async (ctx) => {
+      if (String(ctx.from?.id) !== this.superadminId) {
+        await ctx.answerCbQuery("Ruxsat yo'q");
+        return;
+      }
+      await ctx.answerCbQuery();
+      await this.sendLatestBackup(ctx);
     });
 
     bot.command('pending', async (ctx) => {
@@ -327,6 +395,62 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       `❌ Rad etilgan: ${rejected}\n` +
       `Σ Jami: ${pending + approved + rejected}`
     );
+  }
+
+  /** Backup menyusi — oxirgi zaxira ma'lumoti + tugmalar. */
+  private async sendBackupMenu(ctx: any) {
+    const db = this.backup.latest('db');
+    const info = db
+      ? `Oxirgi zaxira:\n🗄 ${db.name}\n📅 ${db.createdAt.toLocaleString('uz-UZ')} (${fmtSize(db.size)})`
+      : 'Hali zaxira yo\'q.';
+    await ctx.reply(
+      `🗄 Zaxira (backup) boshqaruvi\n\n${info}\n\n` +
+        'Kunlik avtomatik zaxira ham har kuni 02:30 da olinadi.',
+      Markup.inlineKeyboard([
+        [Markup.button.callback('📦 Yangi backup yaratish', 'backup:create')],
+        [Markup.button.callback('⬇️ Oxirgisini yuklab olish', 'backup:latest')],
+      ]),
+    );
+  }
+
+  /** Oxirgi DB (va bo'lsa uploads) zaxirasini Telegram orqali yuboradi. */
+  private async sendLatestBackup(ctx: any) {
+    const db = this.backup.latest('db');
+    if (!db) {
+      await ctx.reply(
+        'Hali zaxira yo\'q. Avval "📦 Yangi backup yaratish" tugmasini bosing.',
+      );
+      return;
+    }
+    await ctx.reply('⬇️ Yuborilyapti...');
+    await this.sendFileOrHint(ctx, db, '🗄 DB zaxirasi');
+
+    const up = this.backup.latest('uploads');
+    if (up) await this.sendFileOrHint(ctx, up, '🖼 Rasmlar zaxirasi');
+  }
+
+  /** Faylni hujjat sifatida yuboradi; 50MB dan katta bo'lsa server yo'lini beradi. */
+  private async sendFileOrHint(
+    ctx: any,
+    file: { path: string; name: string; size: number },
+    caption: string,
+  ) {
+    if (file.size <= TG_FILE_LIMIT) {
+      try {
+        await ctx.replyWithDocument(
+          { source: file.path, filename: file.name },
+          { caption: `${caption} — ${fmtSize(file.size)}` },
+        );
+      } catch (e) {
+        await ctx.reply(`❌ Yuborib bo'lmadi (${file.name}): ${String(e).slice(0, 200)}`);
+      }
+    } else {
+      await ctx.reply(
+        `⚠️ ${caption} ${fmtSize(file.size)} — Telegram 50MB limitidan katta.\n` +
+          `Serverdan oling:\n/opt/maqolalar/backups/${file.name}\n\n` +
+          `scp bilan:\nscp root@SERVER_IP:/opt/maqolalar/backups/${file.name} .`,
+      );
+    }
   }
 
   /** Xato bo'lsa ham botni yiqitmaydigan DM. */

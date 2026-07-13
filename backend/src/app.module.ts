@@ -26,6 +26,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { TelegramModule } from './modules/telegram/telegram.module';
+import { BackupModule } from './modules/backup/backup.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -113,6 +114,7 @@ import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
     HealthModule,
     MaintenanceModule,
     TelegramModule,
+    BackupModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

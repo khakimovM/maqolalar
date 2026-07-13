@@ -27,6 +27,12 @@ dist/
 backend/uploads/
 **/uploads/
 
+# ===== Zaxiralar (backup) — commit qilinmaydi =====
+backups/
+**/backups/
+*.sql.gz
+*.tar.gz
+
 # ===== Loglar =====
 *.log
 npm-debug.log*
