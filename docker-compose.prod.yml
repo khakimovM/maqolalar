@@ -50,7 +50,8 @@ services:
       redis:
         condition: service_started
     ports:
-      - '3000:3000'
+      # Faqat localhost — tashqariga nginx (api.ilmfaktor.uz) orqali chiqadi
+      - '127.0.0.1:3000:3000'
     volumes:
       - uploads:/app/uploads
 
@@ -60,7 +61,8 @@ services:
     depends_on:
       - backend
     ports:
-      - '80:3001'
+      # Faqat localhost — tashqariga nginx (ilmfaktor.uz) orqali chiqadi
+      - '127.0.0.1:3001:3001'
 
   admin:
     build: ./admin
@@ -68,7 +70,8 @@ services:
     depends_on:
       - backend
     ports:
-      - '8080:3002'
+      # Faqat localhost — tashqariga nginx (admin.ilmfaktor.uz) orqali chiqadi
+      - '127.0.0.1:3002:3002'
 
 volumes:
   pgdata:
