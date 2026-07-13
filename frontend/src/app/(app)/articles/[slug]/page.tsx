@@ -36,7 +36,7 @@ export async function generateMetadata({
       title: a.title,
       description,
       url,
-      siteName: "Maqolalar",
+      siteName: "Ilm Faktor",
       locale: "uz_UZ",
       publishedTime: a.publishedAt ?? undefined,
       modifiedTime: a.updatedAt,

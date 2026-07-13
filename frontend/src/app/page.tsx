@@ -26,7 +26,7 @@ function Brand({ big }: { big?: boolean }) {
       style={big ? { color: "#9CF5D2", textShadow: "0 0 22px rgba(124,255,232,0.6)" } : undefined}
     >
       <BookOpen className={big ? "h-12 w-12" : "h-5 w-5"} style={{ color: "#5DCAA5" }} />
-      Maqolalar
+      Ilm Faktor
     </motion.div>
   );
 }
@@ -66,7 +66,7 @@ export default function HomePage() {
       <main className="relative min-h-dvh overflow-hidden" style={{ background: "#07090C", color: "#F4F6F7" }}>
         <header className="absolute inset-x-0 top-0 z-50">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-5">
-            <Link href="/" aria-label="Maqolalar">
+            <Link href="/" aria-label="Ilm Faktor">
               {!intro && <Brand />}
             </Link>
             <Link

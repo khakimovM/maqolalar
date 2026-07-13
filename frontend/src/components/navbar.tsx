@@ -35,7 +35,7 @@ export function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-8">
         <Link href="/" className="flex items-center gap-2 text-lg font-medium tracking-tight">
           <BookOpen className="h-5 w-5 text-primary" />
-          Maqolalar
+          Ilm Faktor
         </Link>
         <div className="flex-1" />
         <Link

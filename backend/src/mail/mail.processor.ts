@@ -12,10 +12,10 @@ import { PrismaService } from '../database/prisma.service';
 type MailJobData = { email: string; code?: string; newEmail?: string };
 
 const SUBJECTS: Record<string, string> = {
-  'otp-verification': 'Maqolalar — Email tasdiqlash kodi',
-  'otp-reset': 'Maqolalar — Parolni tiklash kodi',
-  'otp-change-email': 'Maqolalar — Yangi emailni tasdiqlash kodi',
-  'email-changed': 'Maqolalar — Hisobingiz emaili o\'zgartirildi',
+  'otp-verification': 'Ilm Faktor — Email tasdiqlash kodi',
+  'otp-reset': 'Ilm Faktor — Parolni tiklash kodi',
+  'otp-change-email': 'Ilm Faktor — Yangi emailni tasdiqlash kodi',
+  'email-changed': 'Ilm Faktor — Hisobingiz emaili o\'zgartirildi',
 };
 
 // Job nomini EmailType enum'ga moslash (faqat OTP turlari statistikaga yoziladi)
@@ -75,7 +75,7 @@ export class MailProcessor extends WorkerHost {
       await this.transporter.sendMail({
         from: this.config.get<string>('MAIL_FROM'),
         to: email,
-        subject: SUBJECTS[job.name] ?? 'Maqolalar',
+        subject: SUBJECTS[job.name] ?? 'Ilm Faktor',
         html: isNotice
           ? this.noticeHtml(newEmail ?? '')
           : this.render(`${job.name}.hbs`, { code: code ?? '', email }),
@@ -94,7 +94,7 @@ export class MailProcessor extends WorkerHost {
   private noticeHtml(newEmail: string): string {
     return (
       `<p>Assalomu alaykum,</p>` +
-      `<p>Maqolalar hisobingiz email manzili <b>${newEmail}</b> ga o'zgartirildi.</p>` +
+      `<p>Ilm Faktor hisobingiz email manzili <b>${newEmail}</b> ga o'zgartirildi.</p>` +
       `<p>Agar bu o'zgarishni siz qilmagan bo'lsangiz, darhol qo'llab-quvvatlash ` +
       `xizmatiga murojaat qiling — hisobingiz xavf ostida bo'lishi mumkin.</p>`
     );

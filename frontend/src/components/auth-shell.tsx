@@ -52,7 +52,7 @@ export function AuthShell({
             className="mb-6 flex items-center gap-2 text-lg font-medium tracking-tight"
           >
             <BookOpen className="h-5 w-5 text-primary" />
-            Maqolalar
+            Ilm Faktor
           </Link>
           <h1 className="font-serif text-3xl font-medium tracking-tight">
             {title}

@@ -76,7 +76,7 @@ async function bootstrap() {
   // Swagger — faqat production'dan tashqarida (prod'da API sxemasi oshkor bo'lmasin)
   if (config.get<string>('NODE_ENV') !== 'production') {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('Maqolalar API')
+      .setTitle('Ilm Faktor API')
       .setDescription('Blog platformasi backend API hujjati')
       .setVersion('1.0')
       .addBearerAuth()

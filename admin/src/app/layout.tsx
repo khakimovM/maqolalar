@@ -9,8 +9,8 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 const lora = Lora({ variable: "--font-serif", subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
-  title: "Maqolalar — Admin",
-  description: "Maqolalar platformasi boshqaruv paneli.",
+  title: "Ilm Faktor — Admin",
+  description: "Ilm Faktor platformasi boshqaruv paneli.",
   robots: { index: false, follow: false },
 };
 

@@ -9,7 +9,7 @@ const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 const lora = Lora({ variable: "--font-serif", subsets: ["latin", "cyrillic"] });
 
-const TITLE = "Maqolalar — bilim har bir sahifada";
+const TITLE = "Ilm Faktor — bilim har bir sahifada";
 const DESCRIPTION =
   "Kimyo, matematika, qurilish va boshqa yo'nalishlarda chuqur, ishonchli maqolalar to'plami.";
 
@@ -17,13 +17,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: TITLE,
-    template: "%s — Maqolalar",
+    template: "%s — Ilm Faktor",
   },
   description: DESCRIPTION,
-  applicationName: "Maqolalar",
+  applicationName: "Ilm Faktor",
   openGraph: {
     type: "website",
-    siteName: "Maqolalar",
+    siteName: "Ilm Faktor",
     locale: "uz_UZ",
     title: TITLE,
     description: DESCRIPTION,
