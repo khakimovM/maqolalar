@@ -3,6 +3,8 @@ import { Geist, Geist_Mono, Lora } from "next/font/google";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { Providers } from "@/components/providers";
+import { JsonLd } from "@/components/json-ld";
+import { siteGraph } from "@/lib/schema";
 import { SITE_URL } from "@/lib/seo";
 
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
@@ -21,6 +23,20 @@ export const metadata: Metadata = {
   },
   description: DESCRIPTION,
   applicationName: "Ilm Faktor",
+  alternates: { canonical: "/" },
+  keywords: [
+    "Ilm Faktor",
+    "maqolalar",
+    "ilmiy maqolalar",
+    "kimyo",
+    "matematika",
+    "qurilish",
+    "bilim",
+    "o'zbek tilida maqolalar",
+  ],
+  authors: [{ name: "Ilm Faktor" }],
+  creator: "Ilm Faktor",
+  publisher: "Ilm Faktor",
   openGraph: {
     type: "website",
     siteName: "Ilm Faktor",
@@ -46,6 +62,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        <JsonLd data={siteGraph()} />
         <Providers>{children}</Providers>
       </body>
     </html>

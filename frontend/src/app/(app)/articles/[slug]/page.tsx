@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { ArticleView } from "@/components/article-view";
+import { JsonLd } from "@/components/json-ld";
+import { articleSchema, breadcrumbSchema } from "@/lib/schema";
 import { fetchArticleMeta, absUrl, SITE_URL } from "@/lib/seo";
 
 type Params = { slug: string };
@@ -22,8 +24,9 @@ export async function generateMetadata({
   const description =
     a.excerpt ?? `${a.category.name} bo'yicha maqola — ${a.author.username}`;
   const url = `${SITE_URL}/articles/${a.slug}`;
-  const cover = absUrl(a.coverImage);
-  const images = cover ? [{ url: cover }] : undefined;
+  // Muqova bo'lmasa — brendli standart OG rasmga tushamiz (ijtimoiy ulashish uchun)
+  const cover = absUrl(a.coverImage) ?? `${SITE_URL}/og.png`;
+  const images = [{ url: cover }];
 
   return {
     // layout.tsx title.template "%s — Maqolalar" ni qo'shadi
@@ -45,14 +48,29 @@ export async function generateMetadata({
       images,
     },
     twitter: {
-      card: cover ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title: a.title,
       description,
-      images: cover ? [cover] : undefined,
+      images: [cover],
     },
   };
 }
 
-export default function ArticlePage() {
-  return <ArticleView />;
+export default async function ArticlePage({
+  params,
+}: {
+  params: Promise<Params>;
+}) {
+  const { slug } = await params;
+  const a = await fetchArticleMeta(slug); // generateMetadata bilan bir xil fetch — dedup qilinadi
+  const url = `${SITE_URL}/articles/${slug}`;
+  const image = a ? (absUrl(a.coverImage) ?? `${SITE_URL}/og.png`) : undefined;
+
+  return (
+    <>
+      {a && <JsonLd data={articleSchema(a, url, image)} />}
+      {a && <JsonLd data={breadcrumbSchema(a.title, url)} />}
+      <ArticleView />
+    </>
+  );
 }
