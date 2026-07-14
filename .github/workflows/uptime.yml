@@ -1,0 +1,90 @@
+name: Ilm Faktor uptime
+
+# Har 5 daqiqada saytlarni tekshiradi. Qulasa yoki tiklansa — Telegram botga xabar.
+# GitHub Actions scheduled workflow FAQAT default (main) branchda ishlaydi.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'Telegramga test xabar yuborish (sozlashni tekshirish uchun)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Oldingi holatni (UP/DOWN) cache'dan tiklaymiz — faqat holat o'zgarsa xabar berish uchun
+      - name: Oldingi holatni tiklash
+        uses: actions/cache/restore@v4
+        with:
+          path: state.txt
+          key: uptime-state-${{ github.run_id }}
+          restore-keys: |
+            uptime-state-
+
+      - name: Tekshirish va xabar berish
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          INPUT_TEST: ${{ inputs.test }}
+        run: |
+          set -uo pipefail
+          NL=$(printf '\n')
+
+          send() {
+            curl -fsS --max-time 20 "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" --data-urlencode chat_id="${CHAT_ID}" --data-urlencode text="$1" >/dev/null || true
+          }
+
+          # Test rejimi: qo'lda ishga tushirilganda sozlashni tekshirish
+          if [ "${INPUT_TEST:-false}" = "true" ]; then
+            send "✅ Test: Ilm Faktor uptime monitori ulandi. Sozlash to'g'ri."
+            echo "Test xabari yuborildi."
+            exit 0
+          fi
+
+          prev="UP"
+          [ -f state.txt ] && prev="$(cat state.txt)"
+
+          down=""
+          check_url() {
+            name="$1"; url="$2"; needle="$3"
+            ok=0
+            for i in 1 2 3; do
+              body="$(curl -fsS --max-time 20 "$url" 2>/dev/null)" || { sleep 8; continue; }
+              if [ -z "$needle" ] || printf '%s' "$body" | grep -q "$needle"; then ok=1; break; fi
+              sleep 8
+            done
+            if [ "$ok" -ne 1 ]; then down="${down}${NL}• ${name} — ${url}"; fi
+          }
+
+          check_url "Sayt"        "https://ilmfaktor.uz"            ""
+          check_url "API/DB"      "https://api.ilmfaktor.uz/health" '"status":"ok"'
+          check_url "Admin panel" "https://admin.ilmfaktor.uz"      ""
+
+          if [ -n "$down" ]; then cur="DOWN"; else cur="UP"; fi
+          printf '%s' "$cur" > state.txt
+          now="$(date -u '+%Y-%m-%d %H:%M UTC')"
+
+          if [ "$cur" = "DOWN" ] && [ "$prev" != "DOWN" ]; then
+            send "$(printf '🔴 Ilm Faktor — NOSOZLIK!\n\nIshlamayapti:%s\n\n%s' "$down" "$now")"
+          elif [ "$cur" = "UP" ] && [ "$prev" = "DOWN" ]; then
+            send "$(printf '✅ Ilm Faktor — TIKLANDI. Hammasi ishlayapti.\n\n%s' "$now")"
+          fi
+
+          echo "Holat: $prev -> $cur"
+
+      # Joriy holatni cache'ga saqlaymiz (keyingi run o'qiydi)
+      - name: Holatni saqlash
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state.txt
+          key: uptime-state-${{ github.run_id }}
