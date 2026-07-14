@@ -65,6 +65,11 @@ import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
       rootPath: join(process.cwd(), process.env.UPLOAD_PATH || 'uploads'),
       serveRoot: '/uploads',
       serveStaticOptions: {
+        // Fayllar UUID nomli (o'zgarmas) — 1 yil kesh + immutable.
+        // Bu brauzer va CDN (Cloudflare) keshlashini yoqadi → takroriy
+        // yuklash darrov bo'ladi va server yengillashadi.
+        maxAge: '365d',
+        immutable: true,
         // Rasmlar ommaviy — canvas (qirqish) uchun CORS ochiq bo'lsin
         setHeaders: (res) => {
           res.setHeader('Access-Control-Allow-Origin', '*');
