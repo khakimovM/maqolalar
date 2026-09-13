@@ -5,6 +5,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import type { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { ResizableImage } from "./resizable-image";
+import { TextAlign } from "./text-align";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -36,6 +37,10 @@ import {
   Redo2,
   Sigma,
   Crop,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
 } from "lucide-react";
 import { uploadArticleImage } from "@/lib/admin";
 
@@ -199,6 +204,12 @@ function Toolbar({ editor }: { editor: Editor }) {
   const [mathInit, setMathInit] = useState<{ latex: string; mode: MathMode } | null>(null);
   const [cropState, setCropState] = useState<{ src: string; pos: number } | null>(null);
 
+  // Joriy tekislash: alohida qiymat yo'q bo'lsa — "left" (standart)
+  const alignValue =
+    (["center", "right", "justify"] as const).find((a) =>
+      editor.isActive({ textAlign: a }),
+    ) ?? "left";
+
   const imageSelected = (() => {
     const sel = editor.state.selection;
     return sel instanceof NodeSelection && sel.node.type.name === "image";
@@ -338,6 +349,19 @@ function Toolbar({ editor }: { editor: Editor }) {
         <Quote className="h-4 w-4" />
       </Btn>
       <Divider />
+      <Btn title="Chapga tekislash" active={alignValue === "left"} onClick={() => editor.chain().focus().setTextAlign("left").run()}>
+        <AlignLeft className="h-4 w-4" />
+      </Btn>
+      <Btn title="Markazga tekislash" active={alignValue === "center"} onClick={() => editor.chain().focus().setTextAlign("center").run()}>
+        <AlignCenter className="h-4 w-4" />
+      </Btn>
+      <Btn title="O'ngga tekislash" active={alignValue === "right"} onClick={() => editor.chain().focus().setTextAlign("right").run()}>
+        <AlignRight className="h-4 w-4" />
+      </Btn>
+      <Btn title="Eni bo'yicha tekislash" active={alignValue === "justify"} onClick={() => editor.chain().focus().setTextAlign("justify").run()}>
+        <AlignJustify className="h-4 w-4" />
+      </Btn>
+      <Divider />
       <Btn title="Pastki indeks" active={editor.isActive("subscript")} onClick={() => editor.chain().focus().toggleSubscript().run()}>
         <SubIcon className="h-4 w-4" />
       </Btn>
@@ -416,6 +440,7 @@ export function RichEditor({
         link: { openOnClick: false, autolink: true },
       }),
       ResizableImage.configure({ inline: false, allowBase64: false }),
+      TextAlign,
       Subscript,
       Superscript,
       InlineMath,

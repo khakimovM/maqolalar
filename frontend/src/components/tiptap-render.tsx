@@ -96,6 +96,18 @@ function renderText(node: TNode, key: React.Key): React.ReactNode {
   return <React.Fragment key={key}>{el}</React.Fragment>;
 }
 
+/**
+ * Paragraf/sarlavha tekislashi (admin muharriridagi textAlign atributi).
+ * Faqat ma'lum qiymatlar qabul qilinadi.
+ */
+function alignStyle(node: TNode): React.CSSProperties | undefined {
+  const value = node.attrs?.textAlign;
+  if (value === "center" || value === "right" || value === "justify" || value === "left") {
+    return { textAlign: value };
+  }
+  return undefined;
+}
+
 function children(node: TNode): React.ReactNode {
   return node.content?.map((c, i) => renderNode(c, i));
 }
@@ -106,7 +118,7 @@ function renderNode(node: TNode, key: React.Key): React.ReactNode {
       return renderText(node, key);
     case "paragraph":
       return (
-        <p key={key} className="mb-5 leading-[1.8]">
+        <p key={key} className="mb-5 leading-[1.8]" style={alignStyle(node)}>
           {children(node)}
         </p>
       );
@@ -124,7 +136,7 @@ function renderNode(node: TNode, key: React.Key): React.ReactNode {
         "mt-8 mb-3 font-serif font-medium " + (sizes[level] ?? "text-xl");
       const Tag = (`h${Math.min(6, Math.max(1, level))}`) as keyof React.JSX.IntrinsicElements;
       return (
-        <Tag key={key} className={cls}>
+        <Tag key={key} className={cls} style={alignStyle(node)}>
           {children(node)}
         </Tag>
       );
@@ -165,8 +177,45 @@ function renderNode(node: TNode, key: React.Key): React.ReactNode {
       const imgSrc = safeImageSrc(node.attrs?.src);
       if (!imgSrc) return null; // xavfsiz bo'lmagan manba — rasm ko'rsatilmaydi
       const align = String(node.attrs?.align ?? "center");
+      const wrap = String(node.attrs?.wrap ?? "none");
       const width = node.attrs?.width ? String(node.attrs.width) : undefined;
       const height = node.attrs?.height ? String(node.attrs.height) : undefined;
+      const img = (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={imgSrc}
+          alt={String(node.attrs?.alt ?? "")}
+          className="rounded-lg border border-border"
+          style={{
+            width: width ?? "auto",
+            height: height ?? "auto",
+            maxWidth: "100%",
+          }}
+          loading="lazy"
+        />
+      );
+
+      // Matn rasmning yonidan o'raladi (Word/Docs "Wrap text").
+      // Mobilda o'ralish o'chadi — rasm to'liq kenglikda.
+      if (wrap === "left" || wrap === "right") {
+        const wrapCls =
+          wrap === "left"
+            ? "float-left mt-1 mr-6 mb-3 max-sm:mr-0"
+            : "float-right mt-1 ml-6 mb-3 max-sm:ml-0";
+        return (
+          <span
+            key={key}
+            className={
+              wrapCls +
+              " block max-w-[60%] max-sm:float-none max-sm:my-5 max-sm:max-w-full"
+            }
+          >
+            {img}
+          </span>
+        );
+      }
+
+      // Alohida qator — chap / markaz / o'ng
       const justify =
         align === "left"
           ? "flex-start"
@@ -174,19 +223,8 @@ function renderNode(node: TNode, key: React.Key): React.ReactNode {
             ? "flex-end"
             : "center";
       return (
-        <span key={key} className="my-6 flex" style={{ justifyContent: justify }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imgSrc}
-            alt={String(node.attrs?.alt ?? "")}
-            className="rounded-lg border border-border"
-            style={{
-              width: width ?? "auto",
-              height: height ?? "auto",
-              maxWidth: "100%",
-            }}
-            loading="lazy"
-          />
+        <span key={key} className="my-6 flex clear-both" style={{ justifyContent: justify }}>
+          {img}
         </span>
       );
     }
@@ -226,5 +264,11 @@ export function TiptapRender({ content }: { content: unknown }) {
   if (!doc || !doc.content) {
     return <p className="text-muted-foreground">Matn mavjud emas.</p>;
   }
-  return <div>{doc.content.map((n, i) => renderNode(n, i))}</div>;
+  return (
+    <div>
+      {doc.content.map((n, i) => renderNode(n, i))}
+      {/* o'ralgan (float) rasmlar konteynerdan chiqib ketmasligi uchun */}
+      <div className="clear-both" />
+    </div>
+  );
 }

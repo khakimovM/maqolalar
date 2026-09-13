@@ -319,6 +319,54 @@
 .tiptap .img-handle-tm { left: 50%; top: -6px; margin-left: -6px; cursor: ns-resize; }
 .tiptap .img-handle-bm { left: 50%; bottom: -6px; margin-left: -6px; cursor: ns-resize; }
 
+/* ── Rasm rejimi: matn o'ralishi (float) ───────────────────────────── */
+.tiptap .img-resizer[data-wrap="left"] {
+  float: left;
+  max-width: 60%;
+  margin: 0.3rem 1.25rem 0.7rem 0;
+}
+.tiptap .img-resizer[data-wrap="right"] {
+  float: right;
+  max-width: 60%;
+  margin: 0.3rem 0 0.7rem 1.25rem;
+}
+/* Float'lar muharrir konteyneridan chiqib ketmasin */
+.tiptap::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+/* Ajratuvchi chiziq va panel tugmasining faol holati */
+.tiptap .img-bar-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 3px;
+  background: var(--border);
+}
+.tiptap .img-align-btn.active {
+  background: color-mix(in oklch, var(--primary) 15%, transparent);
+  color: var(--primary);
+}
+.tiptap .img-align-group {
+  display: flex;
+  gap: 2px;
+}
+.tiptap .img-align-group.disabled,
+.tiptap .img-bar-sep.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Kichik ekranda o'ralish o'chadi — rasm to'liq kenglikda */
+@media (max-width: 640px) {
+  .tiptap .img-resizer[data-wrap="left"],
+  .tiptap .img-resizer[data-wrap="right"] {
+    float: none;
+    max-width: 100%;
+    margin: 0.8rem 0;
+  }
+}
+
 /* H1, H5, H6 (muharrir) */
 .tiptap :where(h1) {
   font-size: 2rem;
