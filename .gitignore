@@ -33,6 +33,9 @@ backups/
 *.sql.gz
 *.tar.gz
 
+# ===== Mijoz hujjati (kredensiallar bo'lishi mumkin — public repoga tushmasin) =====
+ILM_FAKTOR_QOLLANMA.md
+
 # ===== Loglar =====
 *.log
 npm-debug.log*
