@@ -100,6 +100,11 @@ function renderText(node: TNode, key: React.Key): React.ReactNode {
  * Paragraf/sarlavha tekislashi (admin muharriridagi textAlign atributi).
  * Faqat ma'lum qiymatlar qabul qilinadi.
  */
+/** Ishonchsiz atribut qiymatini ruxsat etilganlar ro'yxatiga cheklaydi. */
+function pickOne<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? (value as T) : fallback;
+}
+
 function alignStyle(node: TNode): React.CSSProperties | undefined {
   const value = node.attrs?.textAlign;
   if (value === "center" || value === "right" || value === "justify" || value === "left") {
@@ -112,16 +117,39 @@ function children(node: TNode): React.ReactNode {
   return node.content?.map((c, i) => renderNode(c, i));
 }
 
-function renderNode(node: TNode, key: React.Key): React.ReactNode {
+/**
+ * @param topLevel hujjat darajasidagi node (paragraf ichida emas). Eski
+ *   maqolalarda rasm shu darajada saqlangan — o'sha holat uchun zaxira render.
+ */
+function renderNode(
+  node: TNode,
+  key: React.Key,
+  topLevel = false,
+  solo = false,
+): React.ReactNode {
   switch (node.type) {
     case "text":
       return renderText(node, key);
-    case "paragraph":
+    case "paragraph": {
+      // Qatorda YOLG'IZ turgan rasm — blok sifatida joylashadi (muharrirdagi
+      // data-solo="true" bilan bir xil). Paragraf tekislashi bunda kerak emas.
+      const lone =
+        node.content?.length === 1 && node.content[0]?.type === "image"
+          ? node.content[0]
+          : null;
+      if (lone) {
+        return (
+          <p key={key} className="mb-5">
+            {renderNode(lone, 0, false, true)}
+          </p>
+        );
+      }
       return (
         <p key={key} className="mb-5 leading-[1.8]" style={alignStyle(node)}>
           {children(node)}
         </p>
       );
+    }
     case "heading": {
       const level = Number(node.attrs?.level ?? 2);
       const sizes: Record<number, string> = {
@@ -173,58 +201,93 @@ function renderNode(node: TNode, key: React.Key): React.ReactNode {
           <code>{children(node)}</code>
         </pre>
       );
+    /**
+     * RASM QATORI — yonma-yon rasmlar. DOM shakli admin muharriridagi bilan
+     * AYNAN bir xil: joylashuv qoidalari globals.css dagi `.rt-row` blokida.
+     */
+    case "imageRow": {
+      const cells = (node.content ?? []).filter(
+        (c) => c?.type === "rowImage" && safeImageSrc(c.attrs?.src) !== null,
+      );
+      if (cells.length === 0) return null; // ishonchli manbali rasm yo'q
+
+      const align = pickOne(node.attrs?.align, ["left", "center", "right"] as const, "center");
+      const float = pickOne(node.attrs?.float, ["none", "left", "right"] as const, "none");
+      const w = Number(node.attrs?.width);
+      const scaled = Number.isFinite(w) && w >= 10 && w <= 100;
+
+      return (
+        <div
+          key={key}
+          className="rt-row"
+          data-align={align}
+          data-float={float}
+          data-fit={scaled ? "scale" : "auto"}
+          style={
+            scaled ? ({ "--rw": `${Math.round(w)}%` } as React.CSSProperties) : undefined
+          }
+        >
+          {cells.map((c, i) => {
+            const s = Number(c.attrs?.share);
+            return (
+              <figure
+                key={i}
+                className="rt-cell"
+                style={
+                  {
+                    "--share": Number.isFinite(s) && s > 0 ? s : 1,
+                  } as React.CSSProperties
+                }
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={safeImageSrc(c.attrs?.src) as string}
+                  alt={String(c.attrs?.alt ?? "")}
+                  loading="lazy"
+                />
+              </figure>
+            );
+          })}
+        </div>
+      );
+    }
+    /** Qatordan tashqarida uchramaydi — default shoxi bolalarni chiqarmasin. */
+    case "rowImage":
+      return null;
     case "image": {
       const imgSrc = safeImageSrc(node.attrs?.src);
       if (!imgSrc) return null; // xavfsiz bo'lmagan manba — rasm ko'rsatilmaydi
-      const align = String(node.attrs?.align ?? "center");
-      const wrap = String(node.attrs?.wrap ?? "none");
+
+      // Matn ichidagi (yoki hali qayta saqlanmagan eski) rasm. `free` rejimi
+      // olib tashlandi — eski kontent oqimdagi eng yaqin muqobilida chiqadi.
+      const wrap = pickOne(node.attrs?.wrap, ["none", "left", "right"] as const, "none");
+      const align = pickOne(node.attrs?.align, ["left", "center", "right"] as const, "center");
       const width = node.attrs?.width ? String(node.attrs.width) : undefined;
       const height = node.attrs?.height ? String(node.attrs.height) : undefined;
-      const img = (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          src={imgSrc}
-          alt={String(node.attrs?.alt ?? "")}
-          className="rounded-lg border border-border"
-          style={{
-            width: width ?? "auto",
-            height: height ?? "auto",
-            maxWidth: "100%",
-          }}
-          loading="lazy"
-        />
-      );
+      const nx = Number(node.attrs?.offset) || 0;
+      const ny = Number(node.attrs?.offsetY) || 0;
 
-      // Matn rasmning yonidan o'raladi (Word/Docs "Wrap text").
-      // Mobilda o'ralish o'chadi — rasm to'liq kenglikda.
-      if (wrap === "left" || wrap === "right") {
-        const wrapCls =
-          wrap === "left"
-            ? "float-left mt-1 mr-6 mb-3 max-sm:mr-0"
-            : "float-right mt-1 ml-6 mb-3 max-sm:ml-0";
-        return (
-          <span
-            key={key}
-            className={
-              wrapCls +
-              " block max-w-[60%] max-sm:float-none max-sm:my-5 max-sm:max-w-full"
-            }
-          >
-            {img}
-          </span>
-        );
-      }
-
-      // Alohida qator — chap / markaz / o'ng
-      const justify =
-        align === "left"
-          ? "flex-start"
-          : align === "right"
-            ? "flex-end"
-            : "center";
       return (
-        <span key={key} className="my-6 flex clear-both" style={{ justifyContent: justify }}>
-          {img}
+        <span
+          key={key}
+          className="rt-img"
+          data-wrap={wrap}
+          data-align={align}
+          data-solo={solo || topLevel ? "true" : "false"}
+          style={
+            {
+              "--nx": `${nx}%`,
+              "--ny": `${ny}px`,
+            } as React.CSSProperties
+          }
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imgSrc}
+            alt={String(node.attrs?.alt ?? "")}
+            style={{ width: width ?? "auto", height: height ?? "auto" }}
+            loading="lazy"
+          />
         </span>
       );
     }
@@ -266,7 +329,7 @@ export function TiptapRender({ content }: { content: unknown }) {
   }
   return (
     <div>
-      {doc.content.map((n, i) => renderNode(n, i))}
+      {doc.content.map((n, i) => renderNode(n, i, true))}
       {/* o'ralgan (float) rasmlar konteynerdan chiqib ketmasligi uchun */}
       <div className="clear-both" />
     </div>

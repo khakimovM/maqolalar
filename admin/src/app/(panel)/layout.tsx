@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -43,11 +43,43 @@ export default function PanelLayout({
   const hydrated = useAuth((s) => s.hydrated);
   const logout = useAuth((s) => s.logout);
   const [mounted, setMounted] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => setMounted(true), []);
 
   const isAdmin = user?.role === "ADMIN" || user?.role === "SUPERADMIN";
   const isSuper = user?.role === "SUPERADMIN";
+  const ready = mounted && hydrated && !!user && isAdmin;
+
+  /**
+   * Mobil sarlavha balandligini `--admin-header-h` ga yozamiz.
+   *
+   * NEGA: sahifa ichidagi yopishqoq elementlar (masalan maqola muharririning
+   * asboblar paneli) `top: 0` da yopishsa, mobil sarlavha ostida qolib ketadi —
+   * sarlavhaning z-indeksi kattaroq. Shuning uchun ular sarlavha balandligiga
+   * teng masofada yopishishi kerak.
+   *
+   * Desktopda sarlavha `md:hidden` — `offsetHeight` 0 bo'ladi, ya'ni bitta
+   * o'zgaruvchi ikkala holatda ham to'g'ri qiymat beradi.
+   */
+  useEffect(() => {
+    if (!ready) return;
+    const el = headerRef.current;
+    if (!el) return;
+    const apply = () =>
+      document.documentElement.style.setProperty(
+        "--admin-header-h",
+        `${el.offsetHeight}px`,
+      );
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    window.addEventListener("resize", apply);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", apply);
+    };
+  }, [ready]);
 
   // Sessiya tiklash (bootstrap) tugagach gate qilamiz — access token xotirada,
   // yangilanishda cookie orqali tiklanadi.
@@ -138,7 +170,10 @@ export default function PanelLayout({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobil yuqori bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur md:hidden">
+        <header
+          ref={headerRef}
+          className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur md:hidden"
+        >
           <Link href="/" className="flex items-center gap-2 text-base font-medium tracking-tight">
             <LayoutDashboard className="h-5 w-5 text-primary" />
             Admin

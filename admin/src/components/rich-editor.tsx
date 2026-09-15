@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import type { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { ResizableImage } from "./resizable-image";
+import { ImageRow, RowImage, findImageRow } from "./image-row";
+import { ImageUpload } from "./image-upload";
+import { normalizeContent, MAX_ROW_IMAGES } from "@/lib/editor-content";
 import { TextAlign } from "./text-align";
+import { DragHandle } from "@tiptap/extension-drag-handle-react";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -41,6 +45,10 @@ import {
   AlignCenter,
   AlignRight,
   AlignJustify,
+  GripVertical,
+  Columns2,
+  Type,
+  Plus,
 } from "lucide-react";
 import { uploadArticleImage } from "@/lib/admin";
 
@@ -81,6 +89,100 @@ function Btn({
 
 function Divider() {
   return <span className="mx-1 h-5 w-px bg-border" />;
+}
+
+/** Tashqariga bosilganda yopiladigan ochiluvchi ro'yxat (dropdown). */
+function useCloseOnOutside(open: boolean, onClose: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    if (open) document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open, onClose]);
+  return ref;
+}
+
+/**
+ * Asboblar panelidagi toifa menyusi.
+ *
+ * NEGA: panelda 25 dan ortiq tugma bor edi — tor ekranda ular bir necha qatorga
+ * o'ralib, yopishqoq panel ekranning yarmini egallab qo'yardi. Bir toifadagi
+ * amallar bitta menyuga yig'ilgach, panel bitta qatorga sig'adi.
+ */
+function Menu({
+  title,
+  trigger,
+  active,
+  children,
+}: {
+  title: string;
+  trigger: React.ReactNode;
+  active?: boolean;
+  children: (close: () => void) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const ref = useCloseOnOutside(open, close);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        title={title}
+        aria-label={title}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={
+          "flex h-8 items-center gap-0.5 rounded-md px-1.5 transition-colors " +
+          (active || open
+            ? "bg-primary/15 text-primary"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground")
+        }
+      >
+        {trigger}
+        <ChevronDown className="h-3 w-3 shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 min-w-52 overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-lg">
+          {children(close)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({
+  icon,
+  label,
+  hint,
+  active,
+  disabled,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint?: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      title={hint}
+      onClick={onClick}
+      className={
+        "flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors disabled:opacity-40 " +
+        (active ? "bg-primary/10 text-primary" : "hover:bg-muted disabled:hover:bg-transparent")
+      }
+    >
+      <span className="flex h-4 w-4 shrink-0 items-center justify-center">{icon}</span>
+      <span className="flex-1">{label}</span>
+    </button>
+  );
 }
 
 const EMOJIS = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😋", "😎", "🤩", "🥳", "😏", "🤔", "🤨", "😐", "😴", "😬", "🙄", "😮", "😯", "😢", "😭", "😤", "😠", "😡", "🤯", "😱", "🥺", "🤗", "🤭", "🤫", "👍", "👎", "👏", "🙌", "👌", "✌️", "🤞", "🤝", "🙏", "💪", "👋", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔", "🔥", "⭐", "✨", "🎉", "🎊", "✅", "❌", "❗", "❓", "💯", "📌", "📝", "📚", "🔖", "💡", "⚡", "🌟"];
@@ -126,78 +228,52 @@ function EmojiMenu({ editor }: { editor: Editor }) {
 }
 
 function HeadingMenu({ editor }: { editor: Editor }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [open]);
-
   const levels = [1, 2, 3, 4, 5, 6] as const;
   const current = levels.find((l) => editor.isActive("heading", { level: l }));
 
-  function item(active: boolean) {
-    return (
-      "flex w-full items-center px-3 py-1.5 text-left text-sm transition-colors " +
-      (active ? "bg-primary/10 text-primary" : "hover:bg-muted")
-    );
-  }
-
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        title="Sarlavha darajasi"
-        className={
-          "flex h-8 items-center gap-1 rounded-md px-2 transition-colors " +
-          (current
-            ? "bg-primary/15 text-primary"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground")
-        }
-      >
-        <Heading className="h-4 w-4" />
-        <span className="text-xs font-medium">{current ? "H" + current : "¶"}</span>
-        <ChevronDown className="h-3 w-3" />
-      </button>
-      {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-lg">
-          <button
-            type="button"
+    <Menu
+      title="Sarlavha darajasi"
+      active={!!current}
+      trigger={
+        <>
+          <Heading className="h-4 w-4" />
+          <span className="text-xs font-medium">{current ? "H" + current : "¶"}</span>
+        </>
+      }
+    >
+      {(close) => (
+        <>
+          <MenuItem
+            icon={<span className="text-sm">¶</span>}
+            label="Oddiy matn"
+            active={!current}
             onClick={() => {
               editor.chain().focus().setParagraph().run();
-              setOpen(false);
+              close();
             }}
-            className={item(!current)}
-          >
-            Oddiy matn
-          </button>
+          />
           {levels.map((l) => (
-            <button
+            <MenuItem
               key={l}
-              type="button"
+              icon={<span className="text-[0.7rem] font-semibold">H{l}</span>}
+              label={`Sarlavha ${l}`}
+              active={current === l}
               onClick={() => {
                 editor.chain().focus().toggleHeading({ level: l }).run();
-                setOpen(false);
+                close();
               }}
-              className={item(current === l)}
-            >
-              <span style={{ fontSize: `${1.35 - l * 0.08}rem`, fontWeight: 600 }}>
-                Sarlavha {l}
-              </span>
-            </button>
+            />
           ))}
-        </div>
+        </>
       )}
-    </div>
+    </Menu>
   );
 }
 
 function Toolbar({ editor }: { editor: Editor }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const rowFileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
   const prompt = usePrompt();
@@ -210,33 +286,39 @@ function Toolbar({ editor }: { editor: Editor }) {
       editor.isActive({ textAlign: a }),
     ) ?? "left";
 
-  const imageSelected = (() => {
+  /** Tanlangan rasm — qator ichidagisi ham, matn ichidagisi ham. */
+  const selectedImage = (() => {
     const sel = editor.state.selection;
-    return sel instanceof NodeSelection && sel.node.type.name === "image";
+    if (!(sel instanceof NodeSelection)) return null;
+    const name = sel.node.type.name;
+    if (name !== "image" && name !== "rowImage") return null;
+    return { src: sel.node.attrs.src as string, pos: sel.from };
   })();
 
+  /** Joriy tanlov qaysi rasm qatorida turibdi (yonma-yon qo'shish uchun). */
+  const activeRow = findImageRow(editor.state);
+
   function openCrop() {
-    const sel = editor.state.selection;
-    if (sel instanceof NodeSelection && sel.node.type.name === "image") {
-      setCropState({ src: sel.node.attrs.src as string, pos: sel.from });
-    }
+    if (selectedImage) setCropState(selectedImage);
   }
 
   async function onCropped(file: File) {
     if (!cropState) return;
     try {
       const url = await uploadArticleImage(file);
-      const pos = cropState.pos;
-      const node = editor.state.doc.nodeAt(pos);
-      const attrs = node ? node.attrs : {};
-      editor.view.dispatch(
-        editor.view.state.tr.setNodeMarkup(pos, undefined, {
-          ...attrs,
-          src: url,
-          width: null,
-          height: null,
-        }),
-      );
+      const { state } = editor.view;
+      const node = state.doc.nodeAt(cropState.pos);
+      // Dialog ochiq turganda hujjat o'zgargan bo'lishi mumkin — o'sha rasmligini
+      // tekshirmasak, qirqilgan rasm BOSHQA node ustiga yozilib ketardi.
+      if (!node || node.attrs.src !== cropState.src) {
+        toast({ title: "Rasm o'zgardi — qirqishni qaytadan boshlang." });
+        return;
+      }
+      const attrs =
+        node.type.name === "rowImage"
+          ? { ...node.attrs, src: url }
+          : { ...node.attrs, src: url, width: null, height: null };
+      editor.view.dispatch(state.tr.setNodeMarkup(cropState.pos, undefined, attrs));
     } catch {
       toast({ title: "Rasmni saqlab bo'lmadi." });
     } finally {
@@ -304,6 +386,11 @@ function Toolbar({ editor }: { editor: Editor }) {
       .run();
   }
 
+  /**
+   * Rasm qo'yish. ILGARI `setImage()` ishlatilardi — u `insertContent` orqali
+   * TANLOVNI ALMASHTIRARDI, ya'ni rasm tanlangan holda tugma bosilsa yangi rasm
+   * eskisining O'RNIGA tushardi. Endi har doim yangi qator qo'yiladi.
+   */
   async function onImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -311,7 +398,23 @@ function Toolbar({ editor }: { editor: Editor }) {
     setUploading(true);
     try {
       const url = await uploadArticleImage(file);
-      editor.chain().focus().setImage({ src: url }).run();
+      editor.chain().focus().insertImageRow([url]).run();
+    } catch {
+      toast({ title: "Rasm yuklab bo'lmadi." });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  /** Joriy qatorga yonma-yon rasm qo'shish. */
+  async function onRowImagePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadArticleImage(file);
+      editor.chain().focus().addImageToRow(url).run();
     } catch {
       toast({ title: "Rasm yuklab bo'lmadi." });
     } finally {
@@ -320,9 +423,11 @@ function Toolbar({ editor }: { editor: Editor }) {
   }
 
   return (
-    <div className="sticky top-0 z-20 flex flex-wrap items-center gap-0.5 rounded-t-xl border-b border-border bg-card p-2 shadow-sm">
+    <div className="rt-toolbar sticky top-0 z-20 flex flex-wrap items-center gap-0.5 rounded-t-xl border-b border-border bg-card p-2 shadow-sm">
       <HeadingMenu editor={editor} />
       <Divider />
+
+      {/* Eng ko'p ishlatiladigan uchtasi — to'g'ridan-to'g'ri */}
       <Btn title="Qalin" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
         <Bold className="h-4 w-4" />
       </Btn>
@@ -332,61 +437,173 @@ function Toolbar({ editor }: { editor: Editor }) {
       <Btn title="Tagiga chizilgan" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}>
         <UnderlineIcon className="h-4 w-4" />
       </Btn>
-      <Btn title="O'chirilgan" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}>
-        <Strikethrough className="h-4 w-4" />
-      </Btn>
-      <Btn title="Kod" active={editor.isActive("code")} onClick={() => editor.chain().focus().toggleCode().run()}>
-        <Code className="h-4 w-4" />
-      </Btn>
+
+      <Menu
+        title="Matn ko'rinishi"
+        active={
+          editor.isActive("strike") ||
+          editor.isActive("code") ||
+          editor.isActive("subscript") ||
+          editor.isActive("superscript")
+        }
+        trigger={<Type className="h-4 w-4" />}
+      >
+        {(close) => (
+          <>
+            <MenuItem
+              icon={<Strikethrough className="h-4 w-4" />}
+              label="O'chirilgan"
+              active={editor.isActive("strike")}
+              onClick={() => { editor.chain().focus().toggleStrike().run(); close(); }}
+            />
+            <MenuItem
+              icon={<Code className="h-4 w-4" />}
+              label="Kod"
+              active={editor.isActive("code")}
+              onClick={() => { editor.chain().focus().toggleCode().run(); close(); }}
+            />
+            <MenuItem
+              icon={<SubIcon className="h-4 w-4" />}
+              label="Pastki indeks"
+              active={editor.isActive("subscript")}
+              onClick={() => { editor.chain().focus().toggleSubscript().run(); close(); }}
+            />
+            <MenuItem
+              icon={<SupIcon className="h-4 w-4" />}
+              label="Yuqori indeks"
+              active={editor.isActive("superscript")}
+              onClick={() => { editor.chain().focus().toggleSuperscript().run(); close(); }}
+            />
+          </>
+        )}
+      </Menu>
+
       <Divider />
-      <Btn title="Belgili ro'yxat" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-        <List className="h-4 w-4" />
-      </Btn>
-      <Btn title="Raqamli ro'yxat" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-        <ListOrdered className="h-4 w-4" />
-      </Btn>
-      <Btn title="Sitata" active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-        <Quote className="h-4 w-4" />
-      </Btn>
-      <Divider />
-      <Btn title="Chapga tekislash" active={alignValue === "left"} onClick={() => editor.chain().focus().setTextAlign("left").run()}>
-        <AlignLeft className="h-4 w-4" />
-      </Btn>
-      <Btn title="Markazga tekislash" active={alignValue === "center"} onClick={() => editor.chain().focus().setTextAlign("center").run()}>
-        <AlignCenter className="h-4 w-4" />
-      </Btn>
-      <Btn title="O'ngga tekislash" active={alignValue === "right"} onClick={() => editor.chain().focus().setTextAlign("right").run()}>
-        <AlignRight className="h-4 w-4" />
-      </Btn>
-      <Btn title="Eni bo'yicha tekislash" active={alignValue === "justify"} onClick={() => editor.chain().focus().setTextAlign("justify").run()}>
-        <AlignJustify className="h-4 w-4" />
-      </Btn>
-      <Divider />
-      <Btn title="Pastki indeks" active={editor.isActive("subscript")} onClick={() => editor.chain().focus().toggleSubscript().run()}>
-        <SubIcon className="h-4 w-4" />
-      </Btn>
-      <Btn title="Yuqori indeks" active={editor.isActive("superscript")} onClick={() => editor.chain().focus().toggleSuperscript().run()}>
-        <SupIcon className="h-4 w-4" />
-      </Btn>
-      <Divider />
-      <Btn title="Havola" active={editor.isActive("link")} onClick={setLink}>
-        <Link2 className="h-4 w-4" />
-      </Btn>
-      <Btn title="Havolani olib tashlash" disabled={!editor.isActive("link")} onClick={() => editor.chain().focus().unsetLink().run()}>
-        <Link2Off className="h-4 w-4" />
-      </Btn>
-      <Btn title="Rasm" disabled={uploading} onClick={() => fileRef.current?.click()}>
-        <ImageIcon className="h-4 w-4" />
-      </Btn>
-      <Btn title="Rasmni qirqish" disabled={!imageSelected} onClick={openCrop}>
-        <Crop className="h-4 w-4" />
-      </Btn>
-      <Btn title="Ajratuvchi chiziq" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
-        <Minus className="h-4 w-4" />
-      </Btn>
-      <Btn title="Formula (LaTeX)" active={editor.isActive("inlineMath") || editor.isActive("blockMath")} onClick={openMath}>
-        <Sigma className="h-4 w-4" />
-      </Btn>
+
+      <Menu
+        title="Tekislash"
+        active={alignValue !== "left"}
+        trigger={
+          alignValue === "center" ? <AlignCenter className="h-4 w-4" />
+          : alignValue === "right" ? <AlignRight className="h-4 w-4" />
+          : alignValue === "justify" ? <AlignJustify className="h-4 w-4" />
+          : <AlignLeft className="h-4 w-4" />
+        }
+      >
+        {(close) => (
+          <>
+            {([
+              ["left", "Chapga", AlignLeft],
+              ["center", "Markazga", AlignCenter],
+              ["right", "O'ngga", AlignRight],
+              ["justify", "Eni bo'yicha", AlignJustify],
+            ] as const).map(([value, label, Icon]) => (
+              <MenuItem
+                key={value}
+                icon={<Icon className="h-4 w-4" />}
+                label={label}
+                active={alignValue === value}
+                onClick={() => { editor.chain().focus().setTextAlign(value).run(); close(); }}
+              />
+            ))}
+          </>
+        )}
+      </Menu>
+
+      <Menu
+        title="Ro'yxat va sitata"
+        active={
+          editor.isActive("bulletList") ||
+          editor.isActive("orderedList") ||
+          editor.isActive("blockquote")
+        }
+        trigger={<List className="h-4 w-4" />}
+      >
+        {(close) => (
+          <>
+            <MenuItem
+              icon={<List className="h-4 w-4" />}
+              label="Belgili ro'yxat"
+              active={editor.isActive("bulletList")}
+              onClick={() => { editor.chain().focus().toggleBulletList().run(); close(); }}
+            />
+            <MenuItem
+              icon={<ListOrdered className="h-4 w-4" />}
+              label="Raqamli ro'yxat"
+              active={editor.isActive("orderedList")}
+              onClick={() => { editor.chain().focus().toggleOrderedList().run(); close(); }}
+            />
+            <MenuItem
+              icon={<Quote className="h-4 w-4" />}
+              label="Sitata"
+              active={editor.isActive("blockquote")}
+              onClick={() => { editor.chain().focus().toggleBlockquote().run(); close(); }}
+            />
+          </>
+        )}
+      </Menu>
+
+      <Menu title="Rasm" trigger={<ImageIcon className="h-4 w-4" />}>
+        {(close) => (
+          <>
+            <MenuItem
+              icon={<ImageIcon className="h-4 w-4" />}
+              label="Rasm qo'shish"
+              disabled={uploading}
+              onClick={() => { fileRef.current?.click(); close(); }}
+            />
+            <MenuItem
+              icon={<Columns2 className="h-4 w-4" />}
+              label="Yonma-yon rasm qo'shish"
+              hint={activeRow ? undefined : "Avval rasm qatorini tanlang"}
+              disabled={uploading || !activeRow || activeRow.node.childCount >= MAX_ROW_IMAGES}
+              onClick={() => { rowFileRef.current?.click(); close(); }}
+            />
+            <MenuItem
+              icon={<Crop className="h-4 w-4" />}
+              label="Rasmni qirqish"
+              hint={selectedImage ? undefined : "Avval rasmni tanlang"}
+              disabled={!selectedImage}
+              onClick={() => { openCrop(); close(); }}
+            />
+          </>
+        )}
+      </Menu>
+
+      <Menu
+        title="Qo'shish"
+        active={editor.isActive("link") || editor.isActive("inlineMath") || editor.isActive("blockMath")}
+        trigger={<Plus className="h-4 w-4" />}
+      >
+        {(close) => (
+          <>
+            <MenuItem
+              icon={<Link2 className="h-4 w-4" />}
+              label="Havola"
+              active={editor.isActive("link")}
+              onClick={() => { close(); void setLink(); }}
+            />
+            <MenuItem
+              icon={<Link2Off className="h-4 w-4" />}
+              label="Havolani olib tashlash"
+              disabled={!editor.isActive("link")}
+              onClick={() => { editor.chain().focus().unsetLink().run(); close(); }}
+            />
+            <MenuItem
+              icon={<Sigma className="h-4 w-4" />}
+              label="Formula (LaTeX)"
+              active={editor.isActive("inlineMath") || editor.isActive("blockMath")}
+              onClick={() => { close(); openMath(); }}
+            />
+            <MenuItem
+              icon={<Minus className="h-4 w-4" />}
+              label="Ajratuvchi chiziq"
+              onClick={() => { editor.chain().focus().setHorizontalRule().run(); close(); }}
+            />
+          </>
+        )}
+      </Menu>
+
       <EmojiMenu editor={editor} />
       <Divider />
       <Btn title="Bekor qilish" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()}>
@@ -402,6 +619,13 @@ function Toolbar({ editor }: { editor: Editor }) {
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={onImagePick}
+      />
+      <input
+        ref={rowFileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={onRowImagePick}
       />
 
       {mathInit && (
@@ -431,6 +655,11 @@ export function RichEditor({
   onChange: (json: Json) => void;
 }) {
   const [, force] = useState(0);
+  const { toast } = useToast();
+  // Muharrir BIR MARTA yaratiladi — toast'ni ref orqali uzatamiz, aks holda
+  // eski render'ning closure'i qotib qolardi.
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -439,7 +668,13 @@ export function RichEditor({
         heading: { levels: [1, 2, 3, 4, 5, 6] },
         link: { openOnClick: false, autolink: true },
       }),
-      ResizableImage.configure({ inline: false, allowBase64: false }),
+      ResizableImage.configure({ inline: true, allowBase64: false }),
+      ImageRow,
+      RowImage,
+      ImageUpload.configure({
+        upload: uploadArticleImage,
+        onError: (message: string) => toastRef.current({ title: message }),
+      }),
       TextAlign,
       Subscript,
       Superscript,
@@ -449,7 +684,7 @@ export function RichEditor({
         placeholder: "Maqola matnini shu yerga yozing…",
       }),
     ],
-    content: initialContent ?? "",
+    content: normalizeContent(initialContent) ?? "",
     editorProps: {
       attributes: {
         class:
@@ -478,6 +713,18 @@ export function RichEditor({
   return (
     <div className="rounded-xl border border-border bg-background focus-within:border-primary/50">
       <Toolbar editor={editor} />
+      {/*
+        Sudrab ko'chirish ushlagichi. `nested` — kursor blokning chap chetida
+        bo'lsa BUTUN blok (masalan rasm qatori), rasm ustida bo'lsa FAQAT O'SHA
+        rasm sudraladi. `allowedContainers` ATAYLAB berilmagan: u depth 1 dagi
+        oddiy paragraflarni tekshiruvdan o'tkazmay, ushlagichni butunlay
+        yo'qotib yuboradi.
+      */}
+      <DragHandle editor={editor} nested>
+        <span className="drag-handle" title="Sudrab ko'chirish">
+          <GripVertical className="h-4 w-4" />
+        </span>
+      </DragHandle>
       <EditorContent editor={editor} />
     </div>
   );

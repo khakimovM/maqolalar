@@ -241,31 +241,239 @@
   background: color-mix(in oklab, var(--primary) 10%, transparent);
 }
 
-/* ── O'lchami o'zgartiriladigan rasm (muharrir) ── */
-.tiptap .img-resizer {
-  display: block;
-  margin: 0.8rem 0;
+/* ═══════════════════════════════════════════════════════════════════
+   MATN ICHIDAGI RASM (inline `image`) — admin va frontend uchun BIR XIL.
+   ⚠️  Bu blok IKKALA ilovada AYNAN bir xil bo'lishi shart.
+
+   DIQQAT: blok darajasidagi rasm joylashuvi endi pastdagi `.rt-row`
+   blokining ishi. Bu yerdagi qoidalar faqat ikki holat uchun qoldi:
+     • matn bilan bir qatorda, so'zlar orasida turgan rasm;
+     • hali qayta saqlanmagan ESKI maqolalar (ro'yxat elementi ichidagi
+       rasm, `data-solo="true"` bo'lgan yolg'iz rasm).
+
+   DOM (ikkalasida bir xil):
+     <span class="rt-img" data-wrap data-align data-solo
+           style="--nx: <foiz>; --ny: <piksel>"><img …></span>
+
+   REJIMLAR (data-wrap):
+     none  — matn oqimida;
+     left  — rasm chapda, matn o'ng tomonidan o'raladi (float);
+     right — rasm o'ngda, matn chap tomonidan o'raladi (float).
+
+   `free` rejimi OLIB TASHLANDI: u `position: relative` edi, ya'ni rasm
+   oqimdan CHIQMAS, eski joyida bo'sh o'ra qolar edi — nomi va'da qilgan
+   "matn ustida suzish" ni bermasdi.
+
+   --nx / --ny — eski maqolalardagi surish. Muharrir endi ularni YOZMAYDI
+   (standart qiymati 0), lekin qayta saqlanmagan kontent buzilmasligi
+   uchun qoidalar joyida qoldirildi.
+   ═══════════════════════════════════════════════════════════════════ */
+.rt-img {
+  --nx: 0%;
+  --ny: 0px;
+  display: inline-block;
+  vertical-align: bottom;
+  max-width: 100%;
+  /* Chap va o'ng bo'shliq TENG — aks holda yonma-yon rasmlar qatori
+     markazlashganda 4px ga chapga siljib qoladi. */
+  margin: 0.25rem;
 }
-.tiptap .img-resizer[data-align="left"] { text-align: left; }
-.tiptap .img-resizer[data-align="center"] { text-align: center; }
-.tiptap .img-resizer[data-align="right"] { text-align: right; }
+.rt-img img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: 0.5rem;
+}
+
+/* 1a. Oqimda, yonida boshqa narsa bor — yonma-yon turadi */
+.rt-img[data-wrap="none"][data-solo="false"] {
+  /* asosiy bo'shliq + surish (asosiysini yo'qotmaymiz) */
+  margin-left: calc(0.25rem + var(--nx));
+  margin-top: calc(0.25rem + var(--ny));
+}
+
+/* 1b. Oqimda, qatorda yolg'iz — blok, joylashuvi margin bilan aniq */
+.rt-img[data-wrap="none"][data-solo="true"] {
+  display: block;
+  width: fit-content;
+  clear: both;
+  position: relative;
+  left: var(--nx); /* yonida matn yo'q — siljish xavfsiz */
+  margin-top: calc(0.75rem + var(--ny));
+  margin-bottom: 0.75rem;
+  margin-left: 0;
+  margin-right: auto;
+}
+.rt-img[data-wrap="none"][data-solo="true"][data-align="center"] {
+  margin-left: auto;
+  margin-right: auto;
+}
+.rt-img[data-wrap="none"][data-solo="true"][data-align="right"] {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+/* 2. Matn o'raladi — surish margin orqali, matn qayta o'raladi */
+.rt-img[data-wrap="left"] {
+  float: left;
+  max-width: 60%;
+  margin: calc(0.35rem + var(--ny)) 1.4rem 0.8rem var(--nx);
+}
+.rt-img[data-wrap="right"] {
+  float: right;
+  max-width: 60%;
+  margin: calc(0.35rem + var(--ny)) calc(-1 * var(--nx)) 0.8rem 1.4rem;
+}
+
+/* Telefon: barcha maxsus joylashuvlar bekor bo'ladi — rasm to'liq enda.
+   DIQQAT: media query o'zi ustunlik (specificity) bermaydi, shuning uchun
+   selektor yuqoridagi eng "kuchli" qoidadan ham aniqroq bo'lishi SHART
+   (uchala data-atribut sanaladi), aks holda surish mobilda o'chmaydi. */
+@media (max-width: 640px) {
+  .rt-img[data-wrap][data-align][data-solo] {
+    position: static;
+    float: none;
+    display: block;
+    width: auto;
+    max-width: 100%;
+    margin: 0.9rem auto;
+    left: 0;
+    top: 0;
+    clear: both;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RASM QATORI (imageRow) — muharrir (admin) va sayt (frontend) uchun BIR XIL.
+   ⚠️  Bu blok IKKALA ilovada AYNAN bir xil bo'lishi shart.
+
+   DOM (ikkalasida bir xil):
+     <div class="rt-row" data-align data-float data-fit style="--rw: NN%">
+       <figure class="rt-cell" style="--share: 1.4"><img …></figure>
+       …
+     </div>
+
+   --rw    : qator kengligi — matn ustunining foizi (faqat data-fit="scale")
+   --share : qatordagi nisbiy ulush (flex-grow)
+
+   NEGA flex-basis: 0 + flex-grow: share?
+   Chunki flex `gap` ni AVTOMATIK hisobga oladi. Eski inline-block + margin
+   usulida ikkita rasm aniq 50% qilinsa ham 50% + 50% + 16px > 100% bo'lib,
+   ikkinchisi pastga tushib ketardi.
+   ═══════════════════════════════════════════════════════════════════ */
+.rt-row {
+  --rt-gap: 12px;
+  display: flex;
+  gap: var(--rt-gap);
+  align-items: flex-end;
+  margin: 1.1rem 0;
+  max-width: 100%;
+  clear: both;
+  position: relative; /* muharrir paneli absolyut → flex item bo'lmaydi */
+}
+.rt-row > .rt-cell {
+  margin: 0;
+  min-width: 0;
+  position: relative;
+}
+.rt-row > .rt-cell > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: 0.5rem;
+}
+
+/* O'lchami belgilangan qator — ustun kengligining foizi */
+.rt-row[data-fit="scale"] {
+  width: var(--rw, 100%);
+}
+.rt-row[data-fit="scale"] > .rt-cell {
+  flex: var(--share, 1) 1 0;
+}
+
+/* Tabiiy o'lcham — o'lchami hech qachon berilmagan eski rasm cho'zilmasin */
+.rt-row[data-fit="auto"] {
+  width: max-content;
+}
+.rt-row[data-fit="auto"] > .rt-cell {
+  flex: 0 1 auto;
+}
+.rt-row[data-fit="auto"] > .rt-cell > img {
+  width: auto;
+  max-width: 100%;
+}
+
+/* Joylashuv */
+.rt-row[data-align="left"] {
+  margin-left: 0;
+  margin-right: auto;
+}
+.rt-row[data-align="center"] {
+  margin-left: auto;
+  margin-right: auto;
+}
+.rt-row[data-align="right"] {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+/* Matn o'ralishi. TARTIB MUHIM: ustunlik teng (0,2,0) bo'lgani uchun bu
+   qoidalar data-align qoidalaridan KEYIN turishi SHART. */
+.rt-row[data-float="left"] {
+  float: left;
+  max-width: 60%;
+  clear: none;
+  margin: 0.4rem 1.4rem 0.9rem 0;
+}
+.rt-row[data-float="right"] {
+  float: right;
+  max-width: 60%;
+  clear: none;
+  margin: 0.4rem 0 0.9rem 1.4rem;
+}
+
+/* Himoya: ProseMirror ba'zan blok oxiriga <br> yoki ajratgich <img> qo'shadi —
+   ular flex ustuniga aylanib ortiqcha bo'shliq bermasin. */
+.rt-row > br,
+.rt-row > img.ProseMirror-separator {
+  display: none;
+}
+
+/* Telefon: qator ustunga aylanadi. DIQQAT: media query o'zi ustunlik bermaydi,
+   shuning uchun selektor yuqoridagi eng kuchli qoidadan ham aniqroq bo'lishi SHART. */
+@media (max-width: 640px) {
+  .rt-row[data-align][data-float] {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    float: none;
+    margin: 0.9rem 0;
+  }
+  .rt-row[data-align][data-float] > .rt-cell {
+    flex: none;
+    width: 100%;
+  }
+  .rt-row[data-align][data-float] > .rt-cell > img {
+    width: 100%;
+  }
+}
+
+/* ── Muharrir bezaklari: tanlash ramkasi, o'lcham nuqtalari, panel ──
+   (Joylashuv qoidalari yuqoridagi UMUMIY blokda — bu yerda faqat
+   muharrirga tegishli "chrome" qismi.) */
 .tiptap .img-resizer-box {
   position: relative;
   display: inline-block;
   max-width: 100%;
   line-height: 0;
 }
-.tiptap .img-resizer-box img {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  border-radius: 0.5rem;
-}
 .tiptap .img-resizer.selected .img-resizer-box {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
-/* resize handle'lar */
+/* o'lcham nuqtalari */
 .tiptap .img-handle {
   position: absolute;
   width: 12px;
@@ -281,7 +489,11 @@
 .tiptap .img-handle-tr { top: -6px; right: -6px; cursor: nesw-resize; }
 .tiptap .img-handle-bl { bottom: -6px; left: -6px; cursor: nesw-resize; }
 .tiptap .img-handle-br { bottom: -6px; right: -6px; cursor: nwse-resize; }
-/* joylashuv paneli */
+.tiptap .img-handle-rm { top: 50%; right: -6px; margin-top: -6px; cursor: ew-resize; }
+.tiptap .img-handle-lm { top: 50%; left: -6px; margin-top: -6px; cursor: ew-resize; }
+.tiptap .img-handle-tm { left: 50%; top: -6px; margin-left: -6px; cursor: ns-resize; }
+.tiptap .img-handle-bm { left: 50%; bottom: -6px; margin-left: -6px; cursor: ns-resize; }
+/* panel */
 .tiptap .img-resizer-bar {
   position: absolute;
   top: -42px;
@@ -295,7 +507,12 @@
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   line-height: 1;
-  z-index: 3;
+  white-space: nowrap;
+  z-index: 4;
+}
+.tiptap .img-resizer-bar.below {
+  top: auto;
+  bottom: -42px;
 }
 .tiptap .img-resizer.selected .img-resizer-bar { display: flex; }
 .tiptap .img-align-btn {
@@ -312,59 +529,211 @@
   background: var(--muted);
   color: var(--foreground);
 }
-
-/* chekka handle'lar (faqat width / faqat height) */
-.tiptap .img-handle-rm { top: 50%; right: -6px; margin-top: -6px; cursor: ew-resize; }
-.tiptap .img-handle-lm { top: 50%; left: -6px; margin-top: -6px; cursor: ew-resize; }
-.tiptap .img-handle-tm { left: 50%; top: -6px; margin-left: -6px; cursor: ns-resize; }
-.tiptap .img-handle-bm { left: 50%; bottom: -6px; margin-left: -6px; cursor: ns-resize; }
-
-/* ── Rasm rejimi: matn o'ralishi (float) ───────────────────────────── */
-.tiptap .img-resizer[data-wrap="left"] {
-  float: left;
-  max-width: 60%;
-  margin: 0.3rem 1.25rem 0.7rem 0;
+.tiptap .img-align-btn.active {
+  background: color-mix(in oklch, var(--primary) 15%, transparent);
+  color: var(--primary);
 }
-.tiptap .img-resizer[data-wrap="right"] {
-  float: right;
-  max-width: 60%;
-  margin: 0.3rem 0 0.7rem 1.25rem;
+
+/* ── Rasm qatori: muharrir bezaklari ────────────────────────────────
+   Joylashuv qoidalari yuqoridagi UMUMIY `.rt-row` blokida — bu yerda
+   faqat muharrirga tegishli "chrome" qismi. */
+.tiptap .rt-cell.selected > img {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
-/* Float'lar muharrir konteyneridan chiqib ketmasin */
-.tiptap::after {
+
+/* Katakning o'z o'chirish tugmasi — faqat o'sha rasmni olib tashlaydi
+   (paneldagi savat esa butun qatorni o'chiradi) */
+.tiptap .rt-cell-del {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  z-index: 4;
+}
+.tiptap .rt-cell:hover > .rt-cell-del,
+.tiptap .rt-cell.selected > .rt-cell-del { display: flex; }
+.tiptap .rt-cell-del:hover {
+  background: var(--destructive);
+  color: var(--primary-foreground);
+  border-color: var(--destructive);
+}
+
+/* Ajratgich — ikki qo'shni rasm orasidagi nisbatni o'zgartiradi */
+.tiptap .rt-split {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: calc(-1 * var(--rt-gap, 12px) / 2 - 4px);
+  width: 9px;
+  cursor: col-resize;
+  z-index: 3;
+}
+.tiptap .rt-split::before {
   content: "";
-  display: block;
-  clear: both;
+  position: absolute;
+  inset: 18% 3px;
+  border-radius: 2px;
+  background: var(--primary);
+  opacity: 0;
+  transition: opacity 0.12s;
 }
-/* Ajratuvchi chiziq va panel tugmasining faol holati */
-.tiptap .img-bar-sep {
+.tiptap .rt-row:hover .rt-split::before { opacity: 0.4; }
+.tiptap .rt-split:hover::before { opacity: 1; }
+/* Oxirgi katakning o'ng tomonida ajratiladigan qo'shni yo'q */
+.tiptap .rt-row > .rt-cell:last-child .rt-split { display: none; }
+
+/* Chet ushlagichlari — butun qator kengligi.
+   IKKALA tomonda ham bor, lekin QOTIRILGAN chetdagisi yashiriladi: masalan
+   o'ngga tekislangan qatorning o'ng cheti ustunga taqalgan — uni sudrasangiz
+   hech narsa qimirlamaydi. Ko'rinadigani — siljiy oladigan tomondagisi. */
+.tiptap .rt-edge,
+.tiptap .rt-edge-left {
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  width: 12px;
+  cursor: ew-resize;
+  z-index: 3;
+}
+.tiptap .rt-edge { right: -7px; }
+.tiptap .rt-edge-left { left: -7px; }
+.tiptap .rt-edge::before,
+.tiptap .rt-edge-left::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 34px;
+  margin-top: -17px;
+  border-radius: 3px;
+  background: var(--primary);
+  border: 2px solid var(--background);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.tiptap .rt-edge::before { right: 3px; }
+.tiptap .rt-edge-left::before { left: 3px; }
+.tiptap .rt-row:hover .rt-edge::before,
+.tiptap .rt-row:hover .rt-edge-left::before { opacity: 0.55; }
+.tiptap .rt-edge:hover::before,
+.tiptap .rt-edge-left:hover::before { opacity: 1; }
+
+/* Ushlagich qatorning eng chetidagi katakda turadi */
+.tiptap .rt-row > .rt-cell:not(:last-child) .rt-edge { display: none; }
+.tiptap .rt-row > .rt-cell:not(:first-child) .rt-edge-left { display: none; }
+
+/* Qotirilgan chetdagi ushlagich foydasiz — yashiramiz */
+.tiptap .rt-row[data-float="none"][data-align="left"] .rt-edge-left,
+.tiptap .rt-row[data-float="none"][data-align="right"] .rt-edge,
+.tiptap .rt-row[data-float="left"] .rt-edge-left,
+.tiptap .rt-row[data-float="right"] .rt-edge { display: none; }
+
+/* Qator paneli. Faqat BIRINCHI katakda chiqadi — indeksni CSS hal qiladi,
+   shuning uchun nodeView'da qo'shni node'larni kuzatish shart emas. */
+.tiptap .rt-row-bar {
+  position: absolute;
+  top: -42px;
+  left: 0;
+  display: none;
+  gap: 2px;
+  padding: 3px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  line-height: 1;
+  white-space: nowrap;
+  z-index: 5;
+}
+/* Yuqorida joy bo'lmasa (hujjat boshi yoki yopishqoq toolbar ostida) — pastga.
+   Klass `placeFloatingBar()` tomonidan qo'yiladi. */
+.tiptap .rt-row-bar.below {
+  top: auto;
+  bottom: -42px;
+}
+.tiptap .rt-row:hover .rt-row-bar,
+.tiptap .rt-row:has(.rt-cell.selected) .rt-row-bar { display: flex; }
+.tiptap .rt-row > .rt-cell:not(:first-child) .rt-row-bar { display: none !important; }
+.tiptap .rt-bar-group { display: flex; gap: 2px; }
+.tiptap .rt-bar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.tiptap .rt-bar-btn:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.tiptap .rt-bar-sep {
   width: 1px;
   align-self: stretch;
   margin: 4px 3px;
   background: var(--border);
 }
-.tiptap .img-align-btn.active {
+/* Tugmaning "faol" holati QATOR atributlaridan olinadi — JS sinxronlash yo'q */
+.tiptap .rt-row[data-align="left"] .rt-b-align-left,
+.tiptap .rt-row[data-align="center"] .rt-b-align-center,
+.tiptap .rt-row[data-align="right"] .rt-b-align-right,
+.tiptap .rt-row[data-float="none"] .rt-b-float-none,
+.tiptap .rt-row[data-float="left"] .rt-b-float-left,
+.tiptap .rt-row[data-float="right"] .rt-b-float-right {
   background: color-mix(in oklch, var(--primary) 15%, transparent);
   color: var(--primary);
 }
-.tiptap .img-align-group {
-  display: flex;
-  gap: 2px;
-}
-.tiptap .img-align-group.disabled,
-.tiptap .img-bar-sep.disabled {
+/* Matn o'ralganda qatorni tekislash ma'nosiz */
+.tiptap .rt-row:not([data-float="none"]) .rt-bar-align {
   opacity: 0.35;
   pointer-events: none;
 }
+.tiptap .rt-b-remove:hover { color: var(--destructive); }
 
-/* Kichik ekranda o'ralish o'chadi — rasm to'liq kenglikda */
-@media (max-width: 640px) {
-  .tiptap .img-resizer[data-wrap="left"],
-  .tiptap .img-resizer[data-wrap="right"] {
-    float: none;
-    max-width: 100%;
-    margin: 0.8rem 0;
-  }
+/* Yuklanmoqda joy-belgisi (Ctrl+V / drag&drop) */
+.tiptap .rt-upload {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  vertical-align: middle;
+}
+
+/* Muharrir ustuni sayt ustuni bilan AYNAN bir xil: 752 − 2×16(px-4) = 720px
+   (saytda: max-w-3xl 768 − 2×24(px-6) = 720px). */
+.tiptap {
+  max-width: 752px;
+  margin-inline: auto;
+}
+
+/* Asboblar paneli MOBIL SARLAVHA OSTIDA yopishsin.
+   Ikkalasi ham `top: 0` da yopishsa panel sarlavha (z-30) ortiga kirib ketadi
+   va telefonda pastga aylantirganda ko'rinmay qoladi. `--admin-header-h` ni
+   panel layout o'lchab qo'yadi; desktopda sarlavha yashirin, ya'ni qiymat 0. */
+.rt-toolbar {
+  top: var(--admin-header-h, 0px);
+}
+
+/* float'lar muharrir konteyneridan chiqib ketmasin */
+.tiptap::after {
+  content: "";
+  display: block;
+  clear: both;
 }
 
 /* H1, H5, H6 (muharrir) */
@@ -384,4 +753,28 @@
   font-weight: 600;
   color: var(--muted-foreground);
   margin: 0.8rem 0 0.3rem;
+}
+
+/* ── Sudrab ko'chirish ushlagichi (drag handle) ─────────────────────── */
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-right: 4px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--muted-foreground);
+  cursor: grab;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  transition: background-color 0.15s, color 0.15s;
+}
+.drag-handle:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.drag-handle:active {
+  cursor: grabbing;
 }

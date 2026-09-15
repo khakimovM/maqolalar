@@ -129,3 +129,228 @@
     @apply font-sans;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   MATN ICHIDAGI RASM (inline `image`) — admin va frontend uchun BIR XIL.
+   ⚠️  Bu blok IKKALA ilovada AYNAN bir xil bo'lishi shart.
+
+   DIQQAT: blok darajasidagi rasm joylashuvi endi pastdagi `.rt-row`
+   blokining ishi. Bu yerdagi qoidalar faqat ikki holat uchun qoldi:
+     • matn bilan bir qatorda, so'zlar orasida turgan rasm;
+     • hali qayta saqlanmagan ESKI maqolalar (ro'yxat elementi ichidagi
+       rasm, `data-solo="true"` bo'lgan yolg'iz rasm).
+
+   DOM (ikkalasida bir xil):
+     <span class="rt-img" data-wrap data-align data-solo
+           style="--nx: <foiz>; --ny: <piksel>"><img …></span>
+
+   REJIMLAR (data-wrap):
+     none  — matn oqimida;
+     left  — rasm chapda, matn o'ng tomonidan o'raladi (float);
+     right — rasm o'ngda, matn chap tomonidan o'raladi (float).
+
+   `free` rejimi OLIB TASHLANDI: u `position: relative` edi, ya'ni rasm
+   oqimdan CHIQMAS, eski joyida bo'sh o'ra qolar edi — nomi va'da qilgan
+   "matn ustida suzish" ni bermasdi.
+
+   --nx / --ny — eski maqolalardagi surish. Muharrir endi ularni YOZMAYDI
+   (standart qiymati 0), lekin qayta saqlanmagan kontent buzilmasligi
+   uchun qoidalar joyida qoldirildi.
+   ═══════════════════════════════════════════════════════════════════ */
+.rt-img {
+  --nx: 0%;
+  --ny: 0px;
+  display: inline-block;
+  vertical-align: bottom;
+  max-width: 100%;
+  /* Chap va o'ng bo'shliq TENG — aks holda yonma-yon rasmlar qatori
+     markazlashganda 4px ga chapga siljib qoladi. */
+  margin: 0.25rem;
+}
+.rt-img img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: 0.5rem;
+}
+
+/* 1a. Oqimda, yonida boshqa narsa bor — yonma-yon turadi */
+.rt-img[data-wrap="none"][data-solo="false"] {
+  /* asosiy bo'shliq + surish (asosiysini yo'qotmaymiz) */
+  margin-left: calc(0.25rem + var(--nx));
+  margin-top: calc(0.25rem + var(--ny));
+}
+
+/* 1b. Oqimda, qatorda yolg'iz — blok, joylashuvi margin bilan aniq */
+.rt-img[data-wrap="none"][data-solo="true"] {
+  display: block;
+  width: fit-content;
+  clear: both;
+  position: relative;
+  left: var(--nx); /* yonida matn yo'q — siljish xavfsiz */
+  margin-top: calc(0.75rem + var(--ny));
+  margin-bottom: 0.75rem;
+  margin-left: 0;
+  margin-right: auto;
+}
+.rt-img[data-wrap="none"][data-solo="true"][data-align="center"] {
+  margin-left: auto;
+  margin-right: auto;
+}
+.rt-img[data-wrap="none"][data-solo="true"][data-align="right"] {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+/* 2. Matn o'raladi — surish margin orqali, matn qayta o'raladi */
+.rt-img[data-wrap="left"] {
+  float: left;
+  max-width: 60%;
+  margin: calc(0.35rem + var(--ny)) 1.4rem 0.8rem var(--nx);
+}
+.rt-img[data-wrap="right"] {
+  float: right;
+  max-width: 60%;
+  margin: calc(0.35rem + var(--ny)) calc(-1 * var(--nx)) 0.8rem 1.4rem;
+}
+
+/* Telefon: barcha maxsus joylashuvlar bekor bo'ladi — rasm to'liq enda.
+   DIQQAT: media query o'zi ustunlik (specificity) bermaydi, shuning uchun
+   selektor yuqoridagi eng "kuchli" qoidadan ham aniqroq bo'lishi SHART
+   (uchala data-atribut sanaladi), aks holda surish mobilda o'chmaydi. */
+@media (max-width: 640px) {
+  .rt-img[data-wrap][data-align][data-solo] {
+    position: static;
+    float: none;
+    display: block;
+    width: auto;
+    max-width: 100%;
+    margin: 0.9rem auto;
+    left: 0;
+    top: 0;
+    clear: both;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RASM QATORI (imageRow) — muharrir (admin) va sayt (frontend) uchun BIR XIL.
+   ⚠️  Bu blok IKKALA ilovada AYNAN bir xil bo'lishi shart.
+
+   DOM (ikkalasida bir xil):
+     <div class="rt-row" data-align data-float data-fit style="--rw: NN%">
+       <figure class="rt-cell" style="--share: 1.4"><img …></figure>
+       …
+     </div>
+
+   --rw    : qator kengligi — matn ustunining foizi (faqat data-fit="scale")
+   --share : qatordagi nisbiy ulush (flex-grow)
+
+   NEGA flex-basis: 0 + flex-grow: share?
+   Chunki flex `gap` ni AVTOMATIK hisobga oladi. Eski inline-block + margin
+   usulida ikkita rasm aniq 50% qilinsa ham 50% + 50% + 16px > 100% bo'lib,
+   ikkinchisi pastga tushib ketardi.
+   ═══════════════════════════════════════════════════════════════════ */
+.rt-row {
+  --rt-gap: 12px;
+  display: flex;
+  gap: var(--rt-gap);
+  align-items: flex-end;
+  margin: 1.1rem 0;
+  max-width: 100%;
+  clear: both;
+  position: relative; /* muharrir paneli absolyut → flex item bo'lmaydi */
+}
+.rt-row > .rt-cell {
+  margin: 0;
+  min-width: 0;
+  position: relative;
+}
+.rt-row > .rt-cell > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: 0.5rem;
+}
+
+/* O'lchami belgilangan qator — ustun kengligining foizi */
+.rt-row[data-fit="scale"] {
+  width: var(--rw, 100%);
+}
+.rt-row[data-fit="scale"] > .rt-cell {
+  flex: var(--share, 1) 1 0;
+}
+
+/* Tabiiy o'lcham — o'lchami hech qachon berilmagan eski rasm cho'zilmasin */
+.rt-row[data-fit="auto"] {
+  width: max-content;
+}
+.rt-row[data-fit="auto"] > .rt-cell {
+  flex: 0 1 auto;
+}
+.rt-row[data-fit="auto"] > .rt-cell > img {
+  width: auto;
+  max-width: 100%;
+}
+
+/* Joylashuv */
+.rt-row[data-align="left"] {
+  margin-left: 0;
+  margin-right: auto;
+}
+.rt-row[data-align="center"] {
+  margin-left: auto;
+  margin-right: auto;
+}
+.rt-row[data-align="right"] {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+/* Matn o'ralishi. TARTIB MUHIM: ustunlik teng (0,2,0) bo'lgani uchun bu
+   qoidalar data-align qoidalaridan KEYIN turishi SHART. */
+.rt-row[data-float="left"] {
+  float: left;
+  max-width: 60%;
+  clear: none;
+  margin: 0.4rem 1.4rem 0.9rem 0;
+}
+.rt-row[data-float="right"] {
+  float: right;
+  max-width: 60%;
+  clear: none;
+  margin: 0.4rem 0 0.9rem 1.4rem;
+}
+
+/* Himoya: ProseMirror ba'zan blok oxiriga <br> yoki ajratgich <img> qo'shadi —
+   ular flex ustuniga aylanib ortiqcha bo'shliq bermasin. */
+.rt-row > br,
+.rt-row > img.ProseMirror-separator {
+  display: none;
+}
+
+/* Telefon: qator ustunga aylanadi. DIQQAT: media query o'zi ustunlik bermaydi,
+   shuning uchun selektor yuqoridagi eng kuchli qoidadan ham aniqroq bo'lishi SHART. */
+@media (max-width: 640px) {
+  .rt-row[data-align][data-float] {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    float: none;
+    margin: 0.9rem 0;
+  }
+  .rt-row[data-align][data-float] > .rt-cell {
+    flex: none;
+    width: 100%;
+  }
+  .rt-row[data-align][data-float] > .rt-cell > img {
+    width: 100%;
+  }
+}
+
+/* Saytda rasmga yengil ramka (muharrirda kerak emas) */
+.rt-img img,
+.rt-row > .rt-cell > img {
+  border: 1px solid var(--border);
+}
