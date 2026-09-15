@@ -23,7 +23,10 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      {/* suppressHydrationWarning: brauzer kengaytmalari (ColorZilla, Gemini va h.k.)
+          <body> ga o'z atributlarini qo'shadi va React hydration mismatch beradi.
+          Frontend ilovasida ham shunday qilingan. */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>
